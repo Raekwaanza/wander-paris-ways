@@ -6,8 +6,8 @@ import { cn } from "@/lib/utils";
 interface Props {
   value: InterestId[];
   onChange: (next: InterestId[]) => void;
-  showSurprise?: boolean;
-  className?: string;
+  showSurprise?: boolean | undefined;
+  className?: string | undefined;
 }
 
 export function InterestChips({ value, onChange, showSurprise = true, className }: Props) {

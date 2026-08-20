@@ -9,8 +9,8 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   title: string;
   onPick: (place: Place) => void;
-  showCurrentLocation?: boolean;
-  currentLocationId?: string;
+  showCurrentLocation?: boolean | undefined;
+  currentLocationId?: string | undefined;
 }
 
 export function PlacePicker({

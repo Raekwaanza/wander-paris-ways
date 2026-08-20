@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 interface Props {
   route: ScenicRoute;
   selected: boolean;
-  recommended?: boolean;
+  recommended?: boolean | undefined;
   onSelect: () => void;
 }
 

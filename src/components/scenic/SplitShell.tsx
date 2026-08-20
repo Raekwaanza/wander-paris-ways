@@ -5,9 +5,9 @@ import { cn } from "@/lib/utils";
 interface Props {
   map: ReactNode;
   panel: ReactNode;
-  header?: ReactNode;
-  showNav?: boolean;
-  panelClassName?: string;
+  header?: ReactNode | undefined;
+  showNav?: boolean | undefined;
+  panelClassName?: string | undefined;
 }
 
 export function SplitShell({ map, panel, header, showNav = true, panelClassName }: Props) {
