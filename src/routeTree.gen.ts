@@ -10,14 +10,22 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as CompleteRouteImport } from './routes/complete'
 import { Route as ExploreRouteImport } from './routes/explore'
 import { Route as NavigateRouteImport } from './routes/navigate'
 import { Route as PlanRouteImport } from './routes/plan'
+import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as SavedRouteImport } from './routes/saved'
 import { Route as WanderRouteImport } from './routes/wander'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CompleteRoute = CompleteRouteImport.update({
+  id: '/complete',
+  path: '/complete',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ExploreRoute = ExploreRouteImport.update({
@@ -35,6 +43,16 @@ const PlanRoute = PlanRouteImport.update({
   path: '/plan',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SavedRoute = SavedRouteImport.update({
+  id: '/saved',
+  path: '/saved',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const WanderRoute = WanderRouteImport.update({
   id: '/wander',
   path: '/wander',
@@ -43,39 +61,76 @@ const WanderRoute = WanderRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/complete': typeof CompleteRoute
   '/explore': typeof ExploreRoute
   '/navigate': typeof NavigateRoute
   '/plan': typeof PlanRoute
+  '/profile': typeof ProfileRoute
+  '/saved': typeof SavedRoute
   '/wander': typeof WanderRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/complete': typeof CompleteRoute
   '/explore': typeof ExploreRoute
   '/navigate': typeof NavigateRoute
   '/plan': typeof PlanRoute
+  '/profile': typeof ProfileRoute
+  '/saved': typeof SavedRoute
   '/wander': typeof WanderRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/complete': typeof CompleteRoute
   '/explore': typeof ExploreRoute
   '/navigate': typeof NavigateRoute
   '/plan': typeof PlanRoute
+  '/profile': typeof ProfileRoute
+  '/saved': typeof SavedRoute
   '/wander': typeof WanderRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/explore' | '/navigate' | '/plan' | '/wander'
+  fullPaths:
+    | '/'
+    | '/complete'
+    | '/explore'
+    | '/navigate'
+    | '/plan'
+    | '/profile'
+    | '/saved'
+    | '/wander'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/explore' | '/navigate' | '/plan' | '/wander'
-  id: '__root__' | '/' | '/explore' | '/navigate' | '/plan' | '/wander'
+  to:
+    | '/'
+    | '/complete'
+    | '/explore'
+    | '/navigate'
+    | '/plan'
+    | '/profile'
+    | '/saved'
+    | '/wander'
+  id:
+    | '__root__'
+    | '/'
+    | '/complete'
+    | '/explore'
+    | '/navigate'
+    | '/plan'
+    | '/profile'
+    | '/saved'
+    | '/wander'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  CompleteRoute: typeof CompleteRoute
   ExploreRoute: typeof ExploreRoute
   NavigateRoute: typeof NavigateRoute
   PlanRoute: typeof PlanRoute
+  ProfileRoute: typeof ProfileRoute
+  SavedRoute: typeof SavedRoute
   WanderRoute: typeof WanderRoute
 }
 
@@ -86,6 +141,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/complete': {
+      id: '/complete'
+      path: '/complete'
+      fullPath: '/complete'
+      preLoaderRoute: typeof CompleteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/explore': {
@@ -109,6 +171,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlanRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/saved': {
+      id: '/saved'
+      path: '/saved'
+      fullPath: '/saved'
+      preLoaderRoute: typeof SavedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/wander': {
       id: '/wander'
       path: '/wander'
@@ -121,9 +197,12 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CompleteRoute: CompleteRoute,
   ExploreRoute: ExploreRoute,
   NavigateRoute: NavigateRoute,
   PlanRoute: PlanRoute,
+  ProfileRoute: ProfileRoute,
+  SavedRoute: SavedRoute,
   WanderRoute: WanderRoute,
 }
 export const routeTree = rootRouteImport
