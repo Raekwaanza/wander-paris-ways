@@ -12,16 +12,16 @@ import {
 } from "./paris-basemap";
 
 interface Props {
-  routes?: { route: ScenicRoute; active: boolean }[];
-  start?: LatLng & { label?: string };
-  end?: LatLng & { label?: string };
-  user?: LatLng;
-  discoveries?: Poi[];
-  activeDiscoveryId?: string | null;
-  onSelectDiscovery?: (poi: Poi) => void;
-  className?: string;
-  padding?: number;
-  interactive?: boolean;
+  routes?: { route: ScenicRoute; active: boolean }[] | undefined;
+  start?: (LatLng & { label?: string }) | undefined;
+  end?: (LatLng & { label?: string }) | undefined;
+  user?: LatLng | undefined;
+  discoveries?: Poi[] | undefined;
+  activeDiscoveryId?: string | null | undefined;
+  onSelectDiscovery?: ((poi: Poi) => void) | undefined;
+  className?: string | undefined;
+  padding?: number | undefined;
+  interactive?: boolean | undefined;
 }
 
 const BLOCKS = blocks();

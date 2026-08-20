@@ -14,8 +14,8 @@ import type { Poi, RouteProfile } from "@/lib/scenic/types";
 
 export const Route = createFileRoute("/navigate")({
   validateSearch: (s: Record<string, unknown>) => ({
-    profile: (["fastest", "scenic", "explorer"].includes(String(s.profile))
-      ? String(s.profile)
+    profile: (["fastest", "scenic", "explorer"].includes(String(s["profile"]))
+      ? String(s["profile"])
       : "scenic") as RouteProfile,
   }),
   head: () => ({

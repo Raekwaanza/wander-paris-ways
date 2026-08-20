@@ -5,10 +5,10 @@ import { cn } from "@/lib/utils";
 
 interface Props {
   poi: Poi;
-  minutesAway?: number;
+  minutesAway?: number | undefined;
   onLearnMore: () => void;
-  onSkip?: () => void;
-  className?: string;
+  onSkip?: (() => void) | undefined;
+  className?: string | undefined;
 }
 
 export function DiscoveryCard({ poi, minutesAway, onLearnMore, onSkip, className }: Props) {
