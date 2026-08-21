@@ -26,7 +26,7 @@ export const Route = createFileRoute("/complete")({
       { title: "You took the Scenic Route — Paris" },
       {
         name: "description",
-        content: "Your walk, summarised: distance, discoveries and the minutes it was worth.",
+        content: "Your route preview, summarised with estimated distance and known discoveries.",
       },
       { property: "og:title", content: "You took the Scenic Route" },
       { property: "og:description", content: "Paris explored, one detour at a time." },
@@ -40,7 +40,7 @@ const LIKES = [
   "Hidden places",
   "History",
   "Architecture",
-  "Quiet route",
+  "Courtyards & passages",
   "Food & cafés",
 ];
 
@@ -103,6 +103,10 @@ function CompletePage() {
   }
 
   const neighborhoods = new Set(route.discoveries.map((d) => d.neighborhood)).size;
+  const estimated = route.routingSource === "mock";
+  const discoveryInterests = [
+    ...new Set(route.discoveries.flatMap((discovery) => discovery.interests)),
+  ];
 
   const onSave = () => {
     saveRoute({
@@ -113,10 +117,9 @@ function CompletePage() {
       minutes: route.minutes,
       km: route.km,
       discoveries: route.discoveries.length,
-      tags: (route.matchedInterests.length
-        ? route.matchedInterests
-        : (["hidden", "historic"] as const).slice(0, 2)
-      ).map(interestLabel),
+      tags: (route.matchedInterests.length ? route.matchedInterests : discoveryInterests)
+        .slice(0, 2)
+        .map(interestLabel),
       savedAt: Date.now(),
     });
     setSaved(true);
@@ -137,16 +140,19 @@ function CompletePage() {
       panel={
         <div className="space-y-5 px-5 pt-5 pb-6">
           <div>
-            <p className="text-eyebrow text-muted-foreground">Arrived · {to.name}</p>
-            <h1 className="text-display mt-1 text-2xl">You took the Scenic Route.</h1>
+            <p className="text-eyebrow text-muted-foreground">Preview complete · {to.name}</p>
+            <h1 className="text-display mt-1 text-2xl">Your route preview is ready.</h1>
           </div>
 
           <dl className="grid grid-cols-2 gap-2">
             {[
-              { k: `${route.km} km`, v: "walked" },
+              {
+                k: `${estimated ? "≈" : ""}${route.km} km`,
+                v: estimated ? "route estimate" : "route distance",
+              },
               { k: `${route.discoveries.length}`, v: "discoveries" },
-              { k: `+${route.extraMinutes} min`, v: "extra time" },
-              { k: `+${Math.max(1, neighborhoods)}`, v: "Paris explored" },
+              { k: `${estimated ? "≈" : ""}+${route.extraMinutes} min`, v: "extra time" },
+              { k: `${neighborhoods}`, v: "neighborhoods represented" },
             ].map((s) => (
               <div key={s.v} className="rounded-2xl border border-border bg-secondary/50 p-3.5">
                 <dt className="text-xl font-semibold tabular-nums">{s.k}</dt>

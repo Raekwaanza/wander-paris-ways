@@ -28,7 +28,7 @@ export const Route = createFileRoute("/navigate")({
       {
         name: "description",
         content:
-          "Live scenic walking navigation with discovery cards explaining each place along the way.",
+          "Follow your selected Scenic Route walking preview with discovery cards along the way.",
       },
       { property: "og:title", content: "Walking now — Scenic Route" },
       { property: "og:description", content: "Discoveries as you go, not a tour." },
@@ -145,8 +145,8 @@ function NavigatePage() {
               <ArrowLeft className="size-4" strokeWidth={1.75} />
             </Link>
             <div className="rounded-full border border-border bg-card/90 px-3.5 py-2 text-sm shadow-card backdrop-blur">
-              <span className="font-semibold tabular-nums">{remainingMin} min</span>
-              <span className="text-muted-foreground"> · {remainingKm} km left</span>
+              <span className="font-semibold tabular-nums">≈{remainingMin} min</span>
+              <span className="text-muted-foreground"> · ≈{remainingKm} km left</span>
             </div>
             <button
               type="button"
@@ -167,10 +167,10 @@ function NavigatePage() {
             <div>
               <div className="flex items-baseline justify-between">
                 <p className="text-eyebrow text-muted-foreground">
-                  {route.title} route · {to.name}
+                  Route preview · {route.title} · {to.name}
                 </p>
                 <span className="text-xs text-muted-foreground tabular-nums">
-                  {Math.round(progress * 100)}%
+                  Preview {Math.round(progress * 100)}%
                 </span>
               </div>
               <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-secondary">
@@ -206,7 +206,7 @@ function NavigatePage() {
               className="flex min-h-13 w-full items-center justify-center gap-2 rounded-2xl border border-border bg-card py-3.5 text-sm font-medium hover:bg-secondary"
             >
               <Flag className="size-4" strokeWidth={1.75} />
-              I've arrived
+              Finish preview
             </button>
           </div>
         }

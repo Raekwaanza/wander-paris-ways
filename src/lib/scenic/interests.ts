@@ -10,7 +10,7 @@ export const INTERESTS: Interest[] = [
   { id: "art", label: "Art & Galleries" },
   { id: "food", label: "Food" },
   { id: "romantic", label: "Romantic" },
-  { id: "quiet", label: "Quiet Streets" },
+  { id: "quiet", label: "Courtyards & Passages" },
   { id: "local", label: "Local Favorites" },
   { id: "iconic", label: "Iconic Paris" },
 ];

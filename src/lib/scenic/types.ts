@@ -68,11 +68,8 @@ export interface ScenicRoute {
   extraMinutes: number;
   discoveries: Poi[];
   path: LatLng[];
-  matchPercent: number;
   matchedInterests: InterestId[];
-  score: number;
   reasons: RouteReasonLine[];
-  majorRoadReduction: number;
   routingSource: "openrouteservice" | "mock";
   attribution?: string;
 }

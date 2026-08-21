@@ -1,4 +1,4 @@
-import { Check, Clock, Footprints, MapPin } from "lucide-react";
+import { Check, MapPin, Sparkles } from "lucide-react";
 import type { ScenicRoute } from "@/lib/scenic/types";
 import { interestLabel } from "@/lib/scenic/interests";
 import { cn } from "@/lib/utils";
@@ -11,6 +11,7 @@ interface Props {
 }
 
 export function RouteCard({ route, selected, recommended, onSelect }: Props) {
+  const estimated = route.routingSource === "mock";
   return (
     <button
       type="button"
@@ -31,6 +32,11 @@ export function RouteCard({ route, selected, recommended, onSelect }: Props) {
               Recommended
             </span>
           )}
+          {estimated && (
+            <span className="rounded-full border border-border bg-secondary px-2 py-0.5 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+              {route.profile === "fastest" ? "Estimated" : "Preview"}
+            </span>
+          )}
         </div>
         <span
           className={cn(
@@ -44,12 +50,16 @@ export function RouteCard({ route, selected, recommended, onSelect }: Props) {
 
       <div className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <span className="text-2xl font-semibold tracking-tight tabular-nums">
+          {estimated ? "≈" : ""}
           {route.minutes} min
         </span>
-        <span className="text-sm text-muted-foreground tabular-nums">{route.km} km</span>
+        <span className="text-sm text-muted-foreground tabular-nums">
+          {estimated ? "≈" : ""}
+          {route.km} km
+        </span>
         {route.extraMinutes > 0 && (
           <span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-terracotta tabular-nums">
-            +{route.extraMinutes} min
+            {estimated ? "≈" : ""}+{route.extraMinutes} min
           </span>
         )}
       </div>
@@ -62,17 +72,12 @@ export function RouteCard({ route, selected, recommended, onSelect }: Props) {
             <MapPin className="size-3.5" strokeWidth={1.75} />
             {route.discoveries.length} discoveries
           </span>
-          <span className="inline-flex items-center gap-1.5">
-            <Footprints className="size-3.5" strokeWidth={1.75} />
-            {route.majorRoadReduction}% less major road
-          </span>
-          <span className="inline-flex items-center gap-1.5 font-medium text-primary">
-            <Clock className="size-3.5" strokeWidth={1.75} />
-            {route.matchPercent}% match
-            {route.matchedInterests.length > 0 && (
-              <> for {route.matchedInterests.slice(0, 2).map(interestLabel).join(" + ")}</>
-            )}
-          </span>
+          {route.matchedInterests.length > 0 && (
+            <span className="inline-flex items-center gap-1.5 font-medium text-primary">
+              <Sparkles className="size-3.5" strokeWidth={1.75} />
+              Matches: {route.matchedInterests.slice(0, 2).map(interestLabel).join(" + ")}
+            </span>
+          )}
         </div>
       )}
     </button>

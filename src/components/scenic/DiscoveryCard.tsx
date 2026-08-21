@@ -24,7 +24,7 @@ export function DiscoveryCard({ poi, minutesAway, onLearnMore, onSkip, className
         </div>
         {typeof minutesAway === "number" && (
           <span className="shrink-0 rounded-full bg-secondary px-2.5 py-1 text-xs font-medium tabular-nums">
-            {minutesAway <= 0 ? "You're here" : `${minutesAway} min away`}
+            {minutesAway <= 0 ? "Preview stop" : `≈${minutesAway} min in preview`}
           </span>
         )}
       </div>
