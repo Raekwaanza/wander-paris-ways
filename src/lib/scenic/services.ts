@@ -18,7 +18,7 @@ import { scenicConfig, type ScenicProviderMode } from "./config";
 import { reverseGeocodeWithMapTiler, type ReverseGeocodeResult } from "./reverse-geocoding.server";
 import { searchParisWithMapTiler, type ForwardGeocodeResult } from "./maptiler-geocoding.server";
 import { livePlaceById, registerLivePlaces } from "./live-places";
-import type { LatLng, Place, Poi, ScenicRoute } from "./types";
+import type { LatLng, Place, Poi, ScenicRoute, WalkingRouteCandidate } from "./types";
 
 export interface GeocodingService {
   search(query: string, proximity?: LatLng): Promise<GeocodingSearchResult>;
@@ -45,6 +45,7 @@ export interface PoiService {
 
 export interface RoutingService {
   routes(from: LatLng, to: LatLng, opts: BuildOptions): Promise<ScenicRoute[]>;
+  candidates(from: LatLng, to: LatLng): Promise<WalkingRouteCandidate[]>;
   wander(from: LatLng, to: LatLng, minutes: number, opts: BuildOptions): Promise<ScenicRoute>;
 }
 
@@ -104,6 +105,17 @@ function stableFastestId(from: LatLng, to: LatLng) {
   return `ors-fastest-${(hash >>> 0).toString(36)}`;
 }
 
+function stableCandidateId(from: LatLng, to: LatLng, providerRank: number, path: LatLng[]) {
+  const geometry = path.map(({ lat, lng }) => `${lat.toFixed(6)},${lng.toFixed(6)}`).join(";");
+  const value = `${routeCoordinateKey(from, to)}:${providerRank}:${geometry}`;
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `ors-candidate-${(hash >>> 0).toString(36)}`;
+}
+
 const routeResponseCache = new Map<string, PedestrianRouteResponse>();
 const routeResponseInFlight = new Map<string, Promise<PedestrianRouteResponse>>();
 const SESSION_ROUTE_CACHE_LIMIT = 32;
@@ -135,18 +147,33 @@ async function cachedOpenRouteServiceRoute(from: LatLng, to: LatLng) {
   }
 }
 
+async function realWalkingCandidates(from: LatLng, to: LatLng): Promise<WalkingRouteCandidate[]> {
+  let response: PedestrianRouteResponse;
+  try {
+    response = await cachedOpenRouteServiceRoute(from, to);
+  } catch {
+    return [];
+  }
+  if (response.status !== "success") return [];
+  return response.candidates.map((candidate) => ({
+    id: stableCandidateId(from, to, candidate.providerRank, candidate.path),
+    provider: "openrouteservice",
+    providerRank: candidate.providerRank,
+    path: candidate.path,
+    distanceMeters: candidate.distanceMeters,
+    durationSeconds: candidate.durationSeconds,
+    ...(candidate.attribution ? { attribution: candidate.attribution } : {}),
+  }));
+}
+
 const hybridRouting: RoutingService = {
+  candidates: realWalkingCandidates,
   async routes(from, to, opts) {
     const mockRoutes = buildRoutes(from, to, opts);
-    let response;
-    try {
-      response = await cachedOpenRouteServiceRoute(from, to);
-    } catch {
-      return mockRoutes;
-    }
-    if (response.status !== "success") return mockRoutes;
+    const candidates = await realWalkingCandidates(from, to);
+    if (candidates.length === 0) return mockRoutes;
 
-    const provider = response.route;
+    const provider = candidates[0];
     const providerMinutes = provider.durationSeconds / 60;
     const pacedMinutes = applyPaceMultiplier(providerMinutes, opts.pace ?? "steady");
     const minutes = provider.durationSeconds > 0 ? Math.max(1, Math.round(pacedMinutes)) : 0;

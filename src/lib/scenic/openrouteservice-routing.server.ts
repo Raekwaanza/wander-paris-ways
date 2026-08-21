@@ -5,8 +5,15 @@ export const OPENROUTESERVICE_ENDPOINT =
   "https://api.heigit.org/openrouteservice/v2/directions/foot-walking/geojson";
 export const OPENROUTESERVICE_TIMEOUT_MS = 8_000;
 export const OPENROUTESERVICE_CACHE_LIMIT = 32;
+export const OPENROUTESERVICE_ALTERNATIVE_ROUTES = {
+  target_count: 3,
+  share_factor: 0.6,
+  weight_factor: 1.4,
+} as const;
+const OPENROUTESERVICE_CACHE_VERSION = "alternatives-v1";
 
 export interface PedestrianRouteResult {
+  providerRank: number;
   path: LatLng[];
   distanceMeters: number;
   durationSeconds: number;
@@ -14,15 +21,15 @@ export interface PedestrianRouteResult {
 }
 
 export type PedestrianRouteResponse =
-  { status: "success"; route: PedestrianRouteResult } | { status: "unavailable" };
+  { status: "success"; candidates: PedestrianRouteResult[] } | { status: "unavailable" };
 
 interface RoutingInput {
   from: LatLng;
   to: LatLng;
 }
 
-const routeCache = new Map<string, PedestrianRouteResult>();
-const inFlight = new Map<string, Promise<PedestrianRouteResult | null>>();
+const routeCache = new Map<string, PedestrianRouteResult[]>();
+const inFlight = new Map<string, Promise<PedestrianRouteResult[]>>();
 let warnedMissingKey = false;
 let warnedProviderFailure = false;
 
@@ -41,12 +48,18 @@ function validCoordinatePair(value: unknown): value is [number, number] {
   );
 }
 
-export function normalizeOpenRouteServiceResponse(payload: unknown): PedestrianRouteResult | null {
-  if (!payload || typeof payload !== "object") return null;
+export function normalizeOpenRouteServiceResponse(payload: unknown): PedestrianRouteResult[] {
+  if (!payload || typeof payload !== "object") return [];
   const response = payload as Record<string, unknown>;
-  if (!Array.isArray(response["features"])) return null;
+  if (!Array.isArray(response["features"])) return [];
 
-  for (const rawFeature of response["features"]) {
+  const candidates: PedestrianRouteResult[] = [];
+  const geometrySignatures = new Set<string>();
+  const metadata = response["metadata"] as Record<string, unknown> | undefined;
+  const attribution =
+    typeof metadata?.["attribution"] === "string" ? metadata["attribution"].trim() : "";
+
+  for (const [providerRank, rawFeature] of response["features"].entries()) {
     if (!rawFeature || typeof rawFeature !== "object") continue;
     const feature = rawFeature as Record<string, unknown>;
     const geometry = feature["geometry"] as Record<string, unknown> | undefined;
@@ -66,17 +79,20 @@ export function normalizeOpenRouteServiceResponse(payload: unknown): PedestrianR
       duration < 0
     )
       continue;
-    const metadata = response["metadata"] as Record<string, unknown> | undefined;
-    const attribution =
-      typeof metadata?.["attribution"] === "string" ? metadata["attribution"].trim() : "";
-    return {
+    const signature = coordinates
+      .map(([lng, lat]) => `${lng.toFixed(6)},${lat.toFixed(6)}`)
+      .join(";");
+    if (geometrySignatures.has(signature)) continue;
+    geometrySignatures.add(signature);
+    candidates.push({
+      providerRank,
       path: coordinates.map(([lng, lat]) => ({ lat, lng })),
       distanceMeters: distance,
       durationSeconds: duration,
       ...(attribution ? { attribution } : {}),
-    };
+    });
   }
-  return null;
+  return candidates;
 }
 
 function validateRoutingInput(input: RoutingInput): RoutingInput {
@@ -100,14 +116,14 @@ function validPoint(point: unknown): point is LatLng {
 }
 
 function cacheKey({ from, to }: RoutingInput) {
-  return `${from.lat.toFixed(6)},${from.lng.toFixed(6)}:${to.lat.toFixed(6)},${to.lng.toFixed(6)}`;
+  return `${OPENROUTESERVICE_CACHE_VERSION}:${from.lat.toFixed(6)},${from.lng.toFixed(6)}:${to.lat.toFixed(6)},${to.lng.toFixed(6)}`;
 }
 
-function remember(key: string, route: PedestrianRouteResult) {
+function remember(key: string, candidates: PedestrianRouteResult[]) {
   if (routeCache.size >= OPENROUTESERVICE_CACHE_LIMIT) {
     routeCache.delete(routeCache.keys().next().value as string);
   }
-  routeCache.set(key, route);
+  routeCache.set(key, candidates);
 }
 
 async function requestRoute(input: RoutingInput, apiKey: string) {
@@ -127,13 +143,14 @@ async function requestRoute(input: RoutingInput, apiKey: string) {
         ],
         preference: "shortest",
         instructions: false,
+        alternative_routes: OPENROUTESERVICE_ALTERNATIVE_ROUTES,
       }),
       signal: controller.signal,
     });
-    if (!response.ok) return null;
+    if (!response.ok) return [];
     return normalizeOpenRouteServiceResponse(await response.json());
   } catch {
-    return null;
+    return [];
   } finally {
     clearTimeout(timeout);
   }
@@ -153,7 +170,7 @@ export const routeWithOpenRouteService = createServerFn({ method: "POST" })
 
     const key = cacheKey(data);
     const cached = routeCache.get(key);
-    if (cached) return { status: "success", route: cached };
+    if (cached) return { status: "success", candidates: cached };
 
     let request = inFlight.get(key);
     if (!request) {
@@ -161,16 +178,16 @@ export const routeWithOpenRouteService = createServerFn({ method: "POST" })
       inFlight.set(key, request);
     }
     try {
-      const route = await request;
-      if (!route) {
+      const candidates = await request;
+      if (candidates.length === 0) {
         if (!warnedProviderFailure && process.env["NODE_ENV"] !== "production") {
           warnedProviderFailure = true;
           console.warn("[Scenic Route] ORS request failed; using mock Fastest.");
         }
         return { status: "unavailable" };
       }
-      remember(key, route);
-      return { status: "success", route };
+      remember(key, candidates);
+      return { status: "success", candidates };
     } finally {
       inFlight.delete(key);
     }
