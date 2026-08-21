@@ -64,6 +64,9 @@ The deterministic server-side E2E fixture described under [Testing](#testing) is
 
 ## Tech Stack
 
+The native-distribution foundation and its security boundary are documented in
+[Native mobile foundation](docs/native-mobile.md).
+
 | Area                      | Current implementation                                       |
 | ------------------------- | ------------------------------------------------------------ |
 | Language and UI           | TypeScript, React 19                                         |
