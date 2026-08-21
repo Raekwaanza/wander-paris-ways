@@ -73,6 +73,8 @@ export interface ScenicRoute {
   score: number;
   reasons: RouteReasonLine[];
   majorRoadReduction: number;
+  routingSource: "openrouteservice" | "mock";
+  attribution?: string;
 }
 
 export type TripEndpoint =

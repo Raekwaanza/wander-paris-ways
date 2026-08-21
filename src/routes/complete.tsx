@@ -75,6 +75,7 @@ function CompletePage() {
     trip?.mode ?? "route",
     profile,
     trip?.wanderMinutes,
+    Boolean(trip && !missingEndpoint),
   );
 
   if (missingEndpoint) {

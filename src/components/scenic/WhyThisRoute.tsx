@@ -4,9 +4,10 @@ import { interestLabel } from "@/lib/scenic/interests";
 export function WhyThisRoute({ route }: { route: ScenicRoute }) {
   if (route.discoveries.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground">
-        No detour here — this is simply the most direct way there.
-      </p>
+      <div className="text-sm text-muted-foreground">
+        <p>No detour here — this is simply the most direct way there.</p>
+        {route.attribution && <p className="mt-1 text-xs">{route.attribution}</p>}
+      </div>
     );
   }
   return (

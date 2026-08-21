@@ -2,12 +2,16 @@
  * Service boundary.
  *
  * Every external dependency the production app will need is declared here as an
- * interface and implemented by a mock backed by the seeded Paris dataset.
+ * interface and implemented by the current hybrid provider stack.
  * To go live, write an adapter (Overpass / Wikidata / OpenTripMap / Foursquare /
  * a future provider) that satisfies the same interface and add its provider set
  * to `createScenicServices` below. No UI or routing-engine code needs to change.
  */
-import { buildRoutes, buildWander, type BuildOptions } from "./routing";
+import { applyPaceMultiplier, buildRoutes, buildWander, type BuildOptions } from "./routing";
+import {
+  routeWithOpenRouteService,
+  type PedestrianRouteResponse,
+} from "./openrouteservice-routing.server";
 import { PLACES, placeById, searchPlaces } from "./places";
 import { POIS, poiById } from "./pois";
 import { scenicConfig, type ScenicProviderMode } from "./config";
@@ -90,10 +94,87 @@ const mockPois: PoiService = {
   all: () => POIS,
 };
 
-const mockRouting: RoutingService = {
+function stableFastestId(from: LatLng, to: LatLng) {
+  const value = `${from.lat.toFixed(6)},${from.lng.toFixed(6)}:${to.lat.toFixed(6)},${to.lng.toFixed(6)}`;
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `ors-fastest-${(hash >>> 0).toString(36)}`;
+}
+
+const routeResponseCache = new Map<string, PedestrianRouteResponse>();
+const routeResponseInFlight = new Map<string, Promise<PedestrianRouteResponse>>();
+const SESSION_ROUTE_CACHE_LIMIT = 32;
+
+function routeCoordinateKey(from: LatLng, to: LatLng) {
+  return `${from.lat.toFixed(6)},${from.lng.toFixed(6)}:${to.lat.toFixed(6)},${to.lng.toFixed(6)}`;
+}
+
+async function cachedOpenRouteServiceRoute(from: LatLng, to: LatLng) {
+  const key = routeCoordinateKey(from, to);
+  const cached = routeResponseCache.get(key);
+  if (cached) return cached;
+  const existing = routeResponseInFlight.get(key);
+  if (existing) return existing;
+
+  const request = routeWithOpenRouteService({ data: { from, to } });
+  routeResponseInFlight.set(key, request);
+  try {
+    const response = await request;
+    if (response.status === "success") {
+      if (routeResponseCache.size >= SESSION_ROUTE_CACHE_LIMIT) {
+        routeResponseCache.delete(routeResponseCache.keys().next().value as string);
+      }
+      routeResponseCache.set(key, response);
+    }
+    return response;
+  } finally {
+    routeResponseInFlight.delete(key);
+  }
+}
+
+const hybridRouting: RoutingService = {
   async routes(from, to, opts) {
-    await delay(140);
-    return buildRoutes(from, to, opts);
+    const mockRoutes = buildRoutes(from, to, opts);
+    let response;
+    try {
+      response = await cachedOpenRouteServiceRoute(from, to);
+    } catch {
+      return mockRoutes;
+    }
+    if (response.status !== "success") return mockRoutes;
+
+    const provider = response.route;
+    const providerMinutes = provider.durationSeconds / 60;
+    const pacedMinutes = applyPaceMultiplier(providerMinutes, opts.pace ?? "steady");
+    const minutes = provider.durationSeconds > 0 ? Math.max(1, Math.round(pacedMinutes)) : 0;
+    const fastest: ScenicRoute = {
+      id: stableFastestId(from, to),
+      profile: "fastest",
+      title: "Fastest",
+      blurb: "The most direct walking route.",
+      minutes,
+      km: Math.round((provider.distanceMeters / 1_000) * 10) / 10,
+      extraMinutes: 0,
+      discoveries: [],
+      path: provider.path,
+      matchPercent: 0,
+      matchedInterests: [],
+      score: 0,
+      reasons: [],
+      majorRoadReduction: 0,
+      routingSource: "openrouteservice",
+      ...(provider.attribution ? { attribution: provider.attribution } : {}),
+    };
+    return [
+      fastest,
+      ...mockRoutes.slice(1).map((route) => ({
+        ...route,
+        extraMinutes: Math.max(0, route.minutes - fastest.minutes),
+      })),
+    ];
   },
   async wander(from, to, minutes, opts) {
     await delay(140);
@@ -116,21 +197,23 @@ interface ScenicServices {
   };
 }
 
-const mockProviderSet = {
+const hybridProviderSet = {
   geocoding: hybridGeocoding,
   pois: mockPois,
-  routing: mockRouting,
+  routing: hybridRouting,
 };
 
 export function createScenicServices(config = scenicConfig): ScenicServices {
   if (config.providerMode === "live") {
     // Live is a recognized future mode, but must never be reported as active
     // until a complete live provider set is implemented.
-    console.warn("[Scenic Route] Live providers are not implemented; using the mock provider set.");
+    console.warn(
+      "[Scenic Route] Full live mode is not implemented; using the hybrid provider set.",
+    );
   }
 
   return {
-    ...mockProviderSet,
+    ...hybridProviderSet,
     reverseGeocoding: mapTilerReverseGeocoding,
     provider: {
       configuredMode: config.providerMode,

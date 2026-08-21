@@ -68,6 +68,7 @@ function NavigatePage() {
     trip?.mode ?? "route",
     profile,
     trip?.wanderMinutes,
+    Boolean(trip && !missingEndpoint),
   );
 
   useEffect(() => {
