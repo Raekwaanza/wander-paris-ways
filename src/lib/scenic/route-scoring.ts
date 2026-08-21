@@ -1,4 +1,5 @@
 import { applyPaceMultiplier } from "./routing";
+import { learnedAffinityForPoi } from "./preference-learning";
 import type {
   CandidateScoreBreakdown,
   CandidateScoringOptions,
@@ -37,6 +38,8 @@ export const SCENIC_CANDIDATE_SCORING_V1 = {
   detourCapToleranceMinutes: 0.01,
 } as const;
 
+export const MAX_LEARNED_INTEREST_BLEND = 0.35;
+
 interface PoiContributions {
   corridorPoi: RouteCorridorPoi;
   scenic: number;
@@ -52,6 +55,7 @@ function contributionsForPoi(
   corridorPoi: RouteCorridorPoi,
   corridorRadiusMeters: number,
   interests: InterestId[],
+  learnedPreferences: CandidateScoringOptions["learnedPreferences"],
 ): PoiContributions {
   const constants = SCENIC_CANDIDATE_SCORING_V1;
   const normalizedDistance = clamp(
@@ -77,10 +81,14 @@ function contributionsForPoi(
   const matchingInterestCount = corridorPoi.poi.interests.filter((interest) =>
     interests.includes(interest),
   ).length;
-  const interest =
+  const explicitInterest =
     interests.length === 0
       ? 0
-      : Math.min(1, matchingInterestCount / Math.max(1, Math.min(2, interests.length))) * proximity;
+      : Math.min(1, matchingInterestCount / Math.max(1, Math.min(2, interests.length)));
+  const learnedAffinity = learnedAffinityForPoi(corridorPoi.poi, learnedPreferences);
+  const combinedInterest =
+    explicitInterest + (1 - explicitInterest) * learnedAffinity * MAX_LEARNED_INTEREST_BLEND;
+  const interest = combinedInterest * proximity;
   const value =
     scenic * constants.componentWeights.scenic +
     landmark * constants.componentWeights.landmark +
@@ -105,7 +113,12 @@ function scoreAnalysis(
   const constants = SCENIC_CANDIDATE_SCORING_V1;
   const rankedPois = analysis.pois
     .map((corridorPoi) =>
-      contributionsForPoi(corridorPoi, analysis.corridorRadiusMeters, options.interests),
+      contributionsForPoi(
+        corridorPoi,
+        analysis.corridorRadiusMeters,
+        options.interests,
+        options.learnedPreferences,
+      ),
     )
     .sort(
       (a, b) =>
@@ -125,7 +138,7 @@ function scoreAnalysis(
     detourPenalty: 0,
   };
   rankedPois.forEach((poi, index) => {
-    const diminishingWeight = constants.diminishingWeights[index];
+    const diminishingWeight = constants.diminishingWeights[index]!;
     breakdown.scenicValue += poi.scenic * constants.componentWeights.scenic * diminishingWeight;
     breakdown.landmarkQuality +=
       poi.landmark * constants.componentWeights.landmark * diminishingWeight;
@@ -177,7 +190,7 @@ export function scoreCandidateCorridors(
     (a, b) =>
       a.candidate.providerRank - b.candidate.providerRank ||
       a.candidate.id.localeCompare(b.candidate.id),
-  )[0];
+  )[0]!;
 
   return analyses
     .map((analysis) => scoreAnalysis(analysis, baseline, options))

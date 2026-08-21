@@ -59,6 +59,7 @@ function PlanPage() {
       interests: trip?.interests ?? prefs.interests,
       detourCap: trip?.detourCap ?? prefs.detourCap,
       pace: prefs.pace,
+      ...(trip?.learnedPreferences ? { learnedPreferences: trip.learnedPreferences } : {}),
     },
     Boolean(trip && !missingEndpoint),
   );

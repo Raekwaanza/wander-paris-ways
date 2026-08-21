@@ -1,12 +1,30 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { services } from "./services";
+import { learnedPreferenceSignature } from "./preference-learning";
 import type { BuildOptions } from "./routing";
-import type { InterestId, LatLng, RouteProfile, ScenicRoute, WanderRoute } from "./types";
+import type {
+  InterestId,
+  LatLng,
+  LearnedPreferenceSnapshot,
+  RouteProfile,
+  ScenicRoute,
+  WanderRoute,
+} from "./types";
 
 interface ServiceResult<T> {
   data: T | null;
   loading: boolean;
   error: Error | null;
+}
+
+function requestLearnedPreferences(signature: string): LearnedPreferenceSnapshot | undefined {
+  if (!signature) return;
+  const interestAffinities: LearnedPreferenceSnapshot["interestAffinities"] = {};
+  for (const entry of signature.split("|")) {
+    const [interest, value] = entry.split(":");
+    if (interest && value) interestAffinities[interest as InterestId] = Number(value);
+  }
+  return { version: 1, interestAffinities, sourceFeedbackCount: 0 };
 }
 
 /**
@@ -29,6 +47,11 @@ export function useRoutes(
   const { lat: fromLat, lng: fromLng } = from;
   const { lat: toLat, lng: toLng } = to;
   const { detourCap, pace } = opts;
+  const learnedSignature = learnedPreferenceSignature(opts.learnedPreferences);
+  const learnedPreferences = useMemo(
+    () => requestLearnedPreferences(learnedSignature),
+    [learnedSignature],
+  );
 
   useEffect(() => {
     let current = true;
@@ -47,6 +70,7 @@ export function useRoutes(
           interests: interests.split(",").filter(Boolean) as InterestId[],
           detourCap,
           ...(pace ? { pace } : {}),
+          ...(learnedPreferences ? { learnedPreferences } : {}),
         },
       )
       .then(
@@ -62,7 +86,18 @@ export function useRoutes(
     return () => {
       current = false;
     };
-  }, [fromLat, fromLng, toLat, toLng, interests, detourCap, pace, enabled]);
+  }, [
+    fromLat,
+    fromLng,
+    toLat,
+    toLng,
+    interests,
+    detourCap,
+    pace,
+    learnedSignature,
+    learnedPreferences,
+    enabled,
+  ]);
 
   return result;
 }
@@ -83,6 +118,11 @@ export function useWanderRoute(
   const { lat: fromLat, lng: fromLng } = from;
   const { lat: toLat, lng: toLng } = to;
   const { detourCap, pace } = opts;
+  const learnedSignature = learnedPreferenceSignature(opts.learnedPreferences);
+  const learnedPreferences = useMemo(
+    () => requestLearnedPreferences(learnedSignature),
+    [learnedSignature],
+  );
 
   useEffect(() => {
     let current = true;
@@ -99,6 +139,7 @@ export function useWanderRoute(
           interests: interests.split(",").filter(Boolean) as InterestId[],
           detourCap,
           ...(pace ? { pace } : {}),
+          ...(learnedPreferences ? { learnedPreferences } : {}),
         })
         .then(
           (data) => current && setResult({ data, loading: false, error: null }),
@@ -115,7 +156,19 @@ export function useWanderRoute(
       current = false;
       window.clearTimeout(timer);
     };
-  }, [fromLat, fromLng, toLat, toLng, minutes, interests, detourCap, pace, enabled]);
+  }, [
+    fromLat,
+    fromLng,
+    toLat,
+    toLng,
+    minutes,
+    interests,
+    detourCap,
+    pace,
+    learnedSignature,
+    learnedPreferences,
+    enabled,
+  ]);
 
   return result;
 }
@@ -138,6 +191,11 @@ export function useTripRoute(
   const { lat: fromLat, lng: fromLng } = from;
   const { lat: toLat, lng: toLng } = to;
   const { detourCap, pace } = opts;
+  const learnedSignature = learnedPreferenceSignature(opts.learnedPreferences);
+  const learnedPreferences = useMemo(
+    () => requestLearnedPreferences(learnedSignature),
+    [learnedSignature],
+  );
 
   useEffect(() => {
     let current = true;
@@ -158,6 +216,7 @@ export function useTripRoute(
               interests: interests.split(",").filter(Boolean) as InterestId[],
               detourCap,
               ...(pace ? { pace } : {}),
+              ...(learnedPreferences ? { learnedPreferences } : {}),
             },
           )
         : services.routing
@@ -168,6 +227,7 @@ export function useTripRoute(
                 interests: interests.split(",").filter(Boolean) as InterestId[],
                 detourCap,
                 ...(pace ? { pace } : {}),
+                ...(learnedPreferences ? { learnedPreferences } : {}),
               },
             )
             .then((routes) => routes.find((route) => route.profile === profile) ?? routes[1]!);
@@ -192,6 +252,8 @@ export function useTripRoute(
     interests,
     detourCap,
     pace,
+    learnedSignature,
+    learnedPreferences,
     mode,
     profile,
     wanderMinutes,

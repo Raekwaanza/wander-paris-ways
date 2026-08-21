@@ -1,7 +1,16 @@
 import { distanceKm, detourKm, lerp, pathLengthKm } from "./geo";
 import { POIS } from "./pois";
 import { matchedInterestsForPois, routeReasonsForPois } from "./route-discoveries";
-import type { InterestId, LatLng, Pace, Place, Poi, RouteProfile, ScenicRoute } from "./types";
+import type {
+  InterestId,
+  LatLng,
+  LearnedPreferenceSnapshot,
+  Pace,
+  Place,
+  Poi,
+  RouteProfile,
+  ScenicRoute,
+} from "./types";
 
 export type { Pace } from "./types";
 
@@ -137,6 +146,7 @@ export interface BuildOptions {
   interests: InterestId[];
   detourCap: number;
   pace?: Pace;
+  learnedPreferences?: LearnedPreferenceSnapshot;
 }
 
 function makeRoute(

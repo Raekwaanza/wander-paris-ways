@@ -69,6 +69,7 @@ function CompletePage() {
       interests: trip?.interests ?? prefs.interests,
       detourCap: trip?.detourCap ?? prefs.detourCap,
       pace: prefs.pace,
+      ...(trip?.learnedPreferences ? { learnedPreferences: trip.learnedPreferences } : {}),
     },
     trip?.mode ?? "route",
     profile,
@@ -249,7 +250,9 @@ function CompletePage() {
                   );
                 })}
               </div>
-              <p className="mt-2 text-xs text-muted-foreground">Saved on this device.</p>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Saved on this device. Future discovery routes may gently reflect what you like.
+              </p>
               <button
                 type="button"
                 onClick={() => removeFeedback(currentFeedback.id)}

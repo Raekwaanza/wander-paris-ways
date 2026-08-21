@@ -1,6 +1,7 @@
 import { distanceKm, detourKm, routeGeometrySignature } from "./geo";
 import { matchedInterestsForPois, routeReasonsForPois } from "./route-discoveries";
 import { applyPaceMultiplier, type BuildOptions } from "./routing";
+import { learnedAffinityForPoi } from "./preference-learning";
 import type {
   InterestId,
   LatLng,
@@ -32,8 +33,15 @@ export interface WanderSequence {
   anchorQuality: number;
 }
 
-function interestStrength(poi: Poi, interests: InterestId[]) {
-  return poi.interests.filter((interest) => interests.includes(interest)).length;
+function preferenceStrength(
+  poi: Poi,
+  options: {
+    interests: InterestId[];
+    learnedPreferences: BuildOptions["learnedPreferences"];
+  },
+) {
+  const explicit = poi.interests.filter((interest) => options.interests.includes(interest)).length;
+  return explicit + learnedAffinityForPoi(poi, options.learnedPreferences) * 0.5;
 }
 
 function editorialQuality(poi: Poi) {
@@ -55,6 +63,7 @@ export function shortlistWanderAnchors(
   pois: Poi[],
   requestedMinutes: number,
   interests: InterestId[],
+  learnedPreferences?: BuildOptions["learnedPreferences"],
 ): Poi[] {
   const approximateDetourLimitKm = Math.max(0.8, requestedMinutes * 0.11);
   return pois
@@ -67,7 +76,7 @@ export function shortlistWanderAnchors(
     .map((poi) => ({
       poi,
       rank:
-        interestStrength(poi, interests) * 3 +
+        preferenceStrength(poi, { interests, learnedPreferences }) * 3 +
         editorialQuality(poi) -
         detourKm(from, poi, to) * 0.8,
     }))
@@ -93,6 +102,7 @@ export function feasibleWanderSequences(
   requestedMinutes: number,
   pace: BuildOptions["pace"] = "steady",
   interests: InterestId[] = [],
+  learnedPreferences?: BuildOptions["learnedPreferences"],
 ): WanderSequence[] {
   const destinationIndex = anchors.length + 1;
   const sequences: WanderSequence[] = [];
@@ -103,7 +113,10 @@ export function feasibleWanderSequences(
     if (pacedMinutes > requestedMinutes + WANDER_V1.budgetToleranceMinutes) return;
     const selected = poiIndexes.map((index) => anchors[index - 1]!);
     const anchorQuality = selected.reduce(
-      (total, poi) => total + editorialQuality(poi) + interestStrength(poi, interests) * 3,
+      (total, poi) =>
+        total +
+        editorialQuality(poi) +
+        preferenceStrength(poi, { interests, learnedPreferences }) * 3,
       0,
     );
     sequences.push({
@@ -135,12 +148,18 @@ export function feasibleWanderSequences(
   );
 }
 
-function displayedDiscoveries(analysis: RouteCorridorAnalysis, interests: InterestId[]) {
+function displayedDiscoveries(
+  analysis: RouteCorridorAnalysis,
+  interests: InterestId[],
+  learnedPreferences?: BuildOptions["learnedPreferences"],
+) {
   const selectedIds = new Set(
     analysis.pois
       .map((corridorPoi) => ({
         corridorPoi,
-        value: editorialQuality(corridorPoi.poi) + interestStrength(corridorPoi.poi, interests) * 3,
+        value:
+          editorialQuality(corridorPoi.poi) +
+          preferenceStrength(corridorPoi.poi, { interests, learnedPreferences }) * 3,
       }))
       .sort(
         (a, b) =>
@@ -164,14 +183,15 @@ export function wanderCandidateScore(
   requestedMinutes: number,
   pace: BuildOptions["pace"],
   interests: InterestId[],
+  learnedPreferences?: BuildOptions["learnedPreferences"],
 ) {
-  const discoveries = displayedDiscoveries(analysis, interests);
+  const discoveries = displayedDiscoveries(analysis, interests, learnedPreferences);
   const discoveryQuality = discoveries.reduce(
     (total, { poi }, index) => total + editorialQuality(poi) * (1 - index * 0.08),
     0,
   );
   const interestAlignment = discoveries.reduce(
-    (total, { poi }) => total + interestStrength(poi, interests) * 2,
+    (total, { poi }) => total + preferenceStrength(poi, { interests, learnedPreferences }) * 2,
     0,
   );
   const spread = new Set(discoveries.map(({ progress }) => Math.min(3, Math.floor(progress * 4))))
@@ -214,7 +234,11 @@ export function materializeWanderRoute(args: {
 }): WanderRoute {
   const { analysis, direct, requestedMinutes, fit, waypointPoiIds, opts, from, to } = args;
   const candidate = analysis.candidate;
-  const corridorDiscoveries = displayedDiscoveries(analysis, opts.interests);
+  const corridorDiscoveries = displayedDiscoveries(
+    analysis,
+    opts.interests,
+    opts.learnedPreferences,
+  );
   const discoveries = corridorDiscoveries.map(({ poi }) => poi);
   const pacedMinutes = applyPaceMultiplier(candidate.durationSeconds / 60, opts.pace ?? "steady");
   const directMinutes = applyPaceMultiplier(direct.durationSeconds / 60, opts.pace ?? "steady");
