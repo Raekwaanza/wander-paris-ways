@@ -14,9 +14,9 @@ import type { InterestId, LatLng, Place, Poi, RouteProfile, ScenicRoute } from "
  * `ScenicRoute` shape is the contract the UI depends on.
  */
 
-const PACE_KMH = 4.6;
+const PACE_KMH = 5.4;
 /** Street network detour vs straight line. */
-const NETWORK_FACTOR = 1.22;
+const NETWORK_FACTOR = 1.02;
 
 export type Pace = "strolling" | "steady" | "brisk";
 const PACE_MULTIPLIER: Record<Pace, number> = {
@@ -211,7 +211,7 @@ function makeRoute(
   const pace = opts.pace ?? "steady";
   const raw: LatLng[] = [from, ...stops, to];
   const path =
-    profile === "fastest" ? weavePath(raw, 0.00055) : weavePath(raw, 0.00085);
+    profile === "fastest" ? weavePath(raw, 0.00035) : weavePath(raw, 0.0006);
   const km = pathLengthKm(path) * (profile === "fastest" ? NETWORK_FACTOR : NETWORK_FACTOR * 1.02);
   const minutes = Math.round(minutesFor(km, pace) + stops.length * 0.7);
   const { percent, matched } = matchFor(stops, opts.interests);
@@ -251,8 +251,8 @@ export function buildRoutes(from: Place | LatLng, to: Place | LatLng, opts: Buil
 
   const cap = opts.detourCap;
   const scenicExtraMin = Math.min(cap, Math.max(7, Math.round(cap * 0.5)));
-  const scenicKmBudget = (scenicExtraMin / 60) * PACE_KMH;
-  const explorerKmBudget = (cap / 60) * PACE_KMH * 1.25;
+  const scenicKmBudget = ((scenicExtraMin / 60) * PACE_KMH) / 1.16;
+  const explorerKmBudget = ((cap / 60) * PACE_KMH * 1.05) / 1.16;
 
   const scenicStops = selectStops(a, b, opts.interests, Math.max(0.3, scenicKmBudget), 4);
   const explorerStops = selectStops(
@@ -260,7 +260,7 @@ export function buildRoutes(from: Place | LatLng, to: Place | LatLng, opts: Buil
     b,
     opts.interests,
     Math.max(0.6, explorerKmBudget),
-    Math.max(5, Math.round(direct * 3) + 4),
+    Math.min(7, Math.max(4, Math.round(direct * 2) + 3)),
   );
 
   const scenic = makeRoute("scenic", a, b, scenicStops, opts, fastestMinutes);
@@ -281,7 +281,7 @@ export function buildWander(
 ): ScenicRoute {
   const a: LatLng = { lat: from.lat, lng: from.lng };
   const b: LatLng = { lat: to.lat, lng: to.lng };
-  const targetKm = (minutesAvailable / 60) * PACE_KMH * 0.94;
+  const targetKm = ((minutesAvailable / 60) * PACE_KMH * 0.97) / 1.1;
   const extraBudget = Math.max(0.2, targetKm - distanceKm(a, b));
   const stops = selectStops(a, b, opts.interests, extraBudget, 8);
   const fastestMinutes = makeRoute("fastest", a, b, [], opts, 0).minutes;
