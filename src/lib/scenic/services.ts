@@ -4,12 +4,13 @@
  * Every external dependency the production app will need is declared here as an
  * interface and implemented by a mock backed by the seeded Paris dataset.
  * To go live, write an adapter (Overpass / Wikidata / OpenTripMap / Foursquare /
- * Mapbox Directions / Google Routes) that satisfies the same interface and swap
- * it in `services` below. No UI or routing-engine code needs to change.
+ * a future provider) that satisfies the same interface and add its provider set
+ * to `createScenicServices` below. No UI or routing-engine code needs to change.
  */
 import { buildRoutes, buildWander, type BuildOptions } from "./routing";
 import { PLACES, placeById, searchPlaces } from "./places";
 import { POIS, poiById } from "./pois";
+import { scenicConfig, type ScenicProviderMode } from "./config";
 import type { LatLng, Place, Poi, ScenicRoute } from "./types";
 
 export interface GeocodingService {
@@ -62,10 +63,37 @@ const mockRouting: RoutingService = {
   },
 };
 
-export const services = {
+interface ScenicServices {
+  geocoding: GeocodingService;
+  pois: PoiService;
+  routing: RoutingService;
+  provider: {
+    configuredMode: ScenicProviderMode;
+    activeMode: ScenicProviderMode;
+  };
+}
+
+const mockProviderSet = {
   geocoding: mockGeocoding,
   pois: mockPois,
   routing: mockRouting,
-  /** Flip to true once real providers are wired in. */
-  isLive: false,
 };
+
+export function createScenicServices(config = scenicConfig): ScenicServices {
+  if (config.providerMode === "live") {
+    // Live is a recognized future mode, but must never be reported as active
+    // until a complete live provider set is implemented.
+    console.warn("[Scenic Route] Live providers are not implemented; using the mock provider set.");
+  }
+
+  return {
+    ...mockProviderSet,
+    provider: {
+      configuredMode: config.providerMode,
+      activeMode: "mock",
+    },
+  };
+}
+
+/** The single application-wide Scenic service initialization point. */
+export const services = createScenicServices();
