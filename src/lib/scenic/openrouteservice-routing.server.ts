@@ -1,6 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
 import { distanceKm, routeGeometrySignature } from "./geo";
 import type { LatLng } from "./types";
+import {
+  fixturePedestrianCandidates,
+  fixtureViaCandidate,
+  isScenicE2EFixtureMode,
+} from "./e2e-provider-fixtures.server";
 
 export const OPENROUTESERVICE_ENDPOINT =
   "https://api.heigit.org/openrouteservice/v2/directions/foot-walking/geojson";
@@ -222,6 +227,9 @@ async function requestViaRoute(input: ViaRoutingInput, apiKey: string) {
 export const routeViaOpenRouteService = createServerFn({ method: "POST" })
   .validator(validateViaRoutingInput)
   .handler(async ({ data }): Promise<PedestrianRouteResponse> => {
+    if (isScenicE2EFixtureMode()) {
+      return { status: "success", candidates: [fixtureViaCandidate(data.points)] };
+    }
     const apiKey = process.env["OPENROUTESERVICE_API_KEY"]?.trim();
     if (!apiKey) return { status: "unavailable" };
     const key = `${VIA_CACHE_VERSION}:${data.points
@@ -250,6 +258,12 @@ export const routeViaOpenRouteService = createServerFn({ method: "POST" })
 export const routeWithOpenRouteService = createServerFn({ method: "POST" })
   .validator(validateRoutingInput)
   .handler(async ({ data }): Promise<PedestrianRouteResponse> => {
+    if (isScenicE2EFixtureMode()) {
+      return {
+        status: "success",
+        candidates: fixturePedestrianCandidates(data.from, data.to),
+      };
+    }
     const apiKey = process.env["OPENROUTESERVICE_API_KEY"]?.trim();
     if (!apiKey) {
       if (!warnedMissingKey && process.env["NODE_ENV"] !== "production") {
