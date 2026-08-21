@@ -13,7 +13,7 @@ import { useRoutes } from "@/lib/scenic/use-services";
 import { usePreferences, useTrip } from "@/lib/scenic/store";
 import type { Poi, RouteProfile } from "@/lib/scenic/types";
 import { LocationRecovery } from "@/components/scenic/LocationRecovery";
-import { isVolatileTripPlaceId, resolveTripPlace } from "@/lib/scenic/current-location";
+import { resolveTripEndpoint, resolvedPlace } from "@/lib/scenic/trip-endpoints";
 
 export const Route = createFileRoute("/plan")({
   head: () => ({
@@ -42,13 +42,13 @@ function PlanPage() {
   const [showLoader, setShowLoader] = useState(true);
   const [detail, setDetail] = useState<Poi | null>(null);
 
-  const fromId = trip?.fromId ?? CURRENT_LOCATION_ID;
-  const resolvedFrom = resolveTripPlace(fromId);
-  const toId = trip?.toId ?? "place-des-vosges";
-  const resolvedTo = resolveTripPlace(toId);
-  const missingVolatilePlace =
-    (isVolatileTripPlaceId(fromId) && !resolvedFrom) ||
-    (isVolatileTripPlaceId(toId) && !resolvedTo);
+  const fromResolution = trip ? resolveTripEndpoint(trip.from) : null;
+  const toResolution = trip ? resolveTripEndpoint(trip.to) : null;
+  const resolvedFrom = fromResolution ? resolvedPlace(fromResolution) : undefined;
+  const resolvedTo = toResolution ? resolvedPlace(toResolution) : undefined;
+  const missingEndpoint =
+    (fromResolution && fromResolution.status !== "resolved") ||
+    (toResolution && toResolution.status !== "resolved");
   const from = resolvedFrom ?? services.geocoding.byId(CURRENT_LOCATION_ID)!;
   const to = resolvedTo ?? services.geocoding.byId("place-des-vosges")!;
 
@@ -64,7 +64,12 @@ function PlanPage() {
     return () => clearTimeout(timer);
   }, [from.id, to.id]);
 
-  if (missingVolatilePlace) return <LocationRecovery reason="route-details" />;
+  if (missingEndpoint) {
+    const missingLocation =
+      fromResolution?.status === "missing-current-location" ||
+      toResolution?.status === "missing-current-location";
+    return <LocationRecovery reason={missingLocation ? "location" : "route-details"} />;
+  }
 
   if (!routes || showLoader) {
     return (

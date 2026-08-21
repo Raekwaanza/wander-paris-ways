@@ -13,6 +13,7 @@ import { usePreferences, useTrip } from "@/lib/scenic/store";
 import type { Place } from "@/lib/scenic/types";
 import { cn } from "@/lib/utils";
 import { getCurrentLocationFix } from "@/lib/scenic/current-location";
+import { tripEndpointFromPlace } from "@/lib/scenic/trip-endpoints";
 
 export const Route = createFileRoute("/wander")({
   head: () => ({
@@ -75,8 +76,8 @@ function WanderPage() {
 
   const start = () => {
     setTrip({
-      fromId: from.id,
-      toId: to.id,
+      from: tripEndpointFromPlace(from),
+      to: tripEndpointFromPlace(to),
       interests: prefs.interests,
       detourCap: prefs.detourCap,
       mode: "wander",

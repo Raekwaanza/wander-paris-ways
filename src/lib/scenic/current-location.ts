@@ -1,7 +1,6 @@
 import { services } from "./services";
 import type { Place } from "./types";
 import type { ReverseGeocodeResult } from "./reverse-geocoding.server";
-import { isMapTilerPlaceId } from "./live-places";
 
 /** Persistable sentinel for a fix whose coordinates deliberately remain in memory only. */
 export const LIVE_CURRENT_LOCATION_ID = "live-current-location";
@@ -62,14 +61,6 @@ export function getCurrentLocationFix() {
 
 export function isLiveCurrentLocationId(id: string | null | undefined) {
   return id === LIVE_CURRENT_LOCATION_ID;
-}
-
-export function resolveTripPlace(id: string): Place | undefined {
-  return isLiveCurrentLocationId(id) ? currentFix?.place : services.geocoding.byId(id);
-}
-
-export function isVolatileTripPlaceId(id: string | null | undefined) {
-  return isLiveCurrentLocationId(id) || isMapTilerPlaceId(id);
 }
 
 function normalizeError(error: GeolocationPositionError | unknown) {
