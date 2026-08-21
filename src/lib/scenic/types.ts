@@ -146,6 +146,18 @@ export interface ScenicRoute {
   attribution?: string;
 }
 
+export type WanderFit = "targeted" | "direct-only" | "insufficient-time" | "preview";
+
+/** Truthful, product-specific status carried alongside the ordinary route contract. */
+export interface WanderRoute extends ScenicRoute {
+  wander: {
+    requestedMinutes: number;
+    fit: WanderFit;
+    /** Curated anchors requested from ORS; not a claim that they are discoveries. */
+    waypointPoiIds: string[];
+  };
+}
+
 export type TripEndpoint =
   | { type: "seeded"; id: string }
   | {

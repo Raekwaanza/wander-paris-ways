@@ -9,9 +9,11 @@
  */
 import { applyPaceMultiplier, buildRoutes, buildWander, type BuildOptions } from "./routing";
 import {
+  routeViaOpenRouteService,
   routeWithOpenRouteService,
   type PedestrianRouteResponse,
 } from "./openrouteservice-routing.server";
+import { walkingDurationMatrix } from "./openrouteservice-matrix.server";
 import { PLACES, placeById, searchPlaces } from "./places";
 import { POIS, poiById } from "./pois";
 import { scenicConfig, type ScenicProviderMode } from "./config";
@@ -23,6 +25,13 @@ import { scoreCandidateCorridors } from "./route-scoring";
 import { matchedInterestsForPois, routeReasonsForPois } from "./route-discoveries";
 import { selectExplorerCandidate, selectScenicCandidate } from "./route-selection";
 import { routeGeometrySignature } from "./geo";
+import {
+  feasibleWanderSequences,
+  materializeWanderRoute,
+  shortlistWanderAnchors,
+  WANDER_V1,
+  wanderCandidateScore,
+} from "./wander-routing";
 import type {
   CandidateScoringOptions,
   LatLng,
@@ -32,6 +41,7 @@ import type {
   ScenicRoute,
   ScoredRouteCandidate,
   WalkingRouteCandidate,
+  WanderRoute,
 } from "./types";
 
 export interface GeocodingService {
@@ -60,7 +70,7 @@ export interface PoiService {
 export interface RoutingService {
   routes(from: LatLng, to: LatLng, opts: BuildOptions): Promise<ScenicRoute[]>;
   candidates(from: LatLng, to: LatLng): Promise<WalkingRouteCandidate[]>;
-  wander(from: LatLng, to: LatLng, minutes: number, opts: BuildOptions): Promise<ScenicRoute>;
+  wander(from: LatLng, to: LatLng, minutes: number, opts: BuildOptions): Promise<WanderRoute>;
 }
 
 export interface RouteAnalysisService {
@@ -258,7 +268,7 @@ const hybridRouting: RoutingService = {
     const candidates = await realWalkingCandidates(from, to);
     if (candidates.length === 0) return mockRoutes;
 
-    const provider = candidates[0];
+    const provider = candidates[0]!;
     const providerMinutes = provider.durationSeconds / 60;
     const pacedMinutes = applyPaceMultiplier(providerMinutes, opts.pace ?? "steady");
     const minutes = provider.durationSeconds > 0 ? Math.max(1, Math.round(pacedMinutes)) : 0;
@@ -301,15 +311,117 @@ const hybridRouting: RoutingService = {
         materializeDiscoveryRoute(selectedScenic, "scenic", opts),
         selectedExplorer
           ? materializeDiscoveryRoute(selectedExplorer, "explorer", opts)
-          : fallbackRoutes[1],
+          : fallbackRoutes[1]!,
       ];
     } catch {
       return [fastest, ...fallbackRoutes];
     }
   },
   async wander(from, to, minutes, opts) {
-    await delay(140);
-    return buildWander(from, to, minutes, opts);
+    // Wander's explicit minutes are the total budget; ordinary detourCap is intentionally ignored.
+    const directCandidates = await realWalkingCandidates(from, to);
+    const direct = directCandidates[0];
+    if (!direct) {
+      return {
+        ...buildWander(from, to, minutes, opts),
+        wander: { requestedMinutes: minutes, fit: "preview", waypointPoiIds: [] },
+      };
+    }
+
+    const directAnalysis = await curatedRouteAnalysis.corridor(direct);
+    const directMinutes = applyPaceMultiplier(direct.durationSeconds / 60, opts.pace ?? "steady");
+    if (directMinutes > minutes + WANDER_V1.budgetToleranceMinutes) {
+      return materializeWanderRoute({
+        from,
+        to,
+        analysis: directAnalysis,
+        direct,
+        requestedMinutes: minutes,
+        fit: "insufficient-time",
+        waypointPoiIds: [],
+        opts,
+      });
+    }
+    const directOnly = () =>
+      materializeWanderRoute({
+        from,
+        to,
+        analysis: directAnalysis,
+        direct,
+        requestedMinutes: minutes,
+        fit: "direct-only",
+        waypointPoiIds: [],
+        opts,
+      });
+    if (minutes - directMinutes < WANDER_V1.minimumExtraRoomMinutes) return directOnly();
+
+    const anchors = shortlistWanderAnchors(from, to, mockPois.all(), minutes, opts.interests);
+    if (anchors.length === 0) return directOnly();
+    let matrix;
+    try {
+      matrix = await walkingDurationMatrix({ data: { locations: [from, ...anchors, to] } });
+    } catch {
+      return directOnly();
+    }
+    if (matrix.status !== "success") return directOnly();
+    const sequences = feasibleWanderSequences(
+      matrix.durationsSeconds,
+      anchors,
+      minutes,
+      opts.pace ?? "steady",
+      opts.interests,
+    ).slice(0, WANDER_V1.maxViaDirectionsAttempts);
+
+    const successful: Array<{ analysis: RouteCorridorAnalysis; waypointPoiIds: string[] }> = [];
+    for (const sequence of sequences) {
+      const waypoints = sequence.poiIndexes.map((index) => anchors[index - 1]!);
+      let response: PedestrianRouteResponse;
+      try {
+        response = await routeViaOpenRouteService({ data: { points: [from, ...waypoints, to] } });
+      } catch {
+        continue;
+      }
+      if (response.status !== "success" || !response.candidates[0]) continue;
+      const result = response.candidates[0];
+      const pacedMinutes = applyPaceMultiplier(result.durationSeconds / 60, opts.pace ?? "steady");
+      if (pacedMinutes > minutes + WANDER_V1.budgetToleranceMinutes) continue;
+      const candidate: WalkingRouteCandidate = {
+        id: stableCandidateId(from, to, 0, result.path),
+        provider: "openrouteservice",
+        providerRank: 0,
+        path: result.path,
+        distanceMeters: result.distanceMeters,
+        durationSeconds: result.durationSeconds,
+        ...(result.startOffsetMeters !== undefined
+          ? { startOffsetMeters: result.startOffsetMeters }
+          : {}),
+        ...(result.endOffsetMeters !== undefined
+          ? { endOffsetMeters: result.endOffsetMeters }
+          : {}),
+        ...(result.attribution ? { attribution: result.attribution } : {}),
+      };
+      successful.push({
+        analysis: await curatedRouteAnalysis.corridor(candidate),
+        waypointPoiIds: sequence.poiIds,
+      });
+    }
+    const selected = successful.sort(
+      (a, b) =>
+        wanderCandidateScore(b.analysis, minutes, opts.pace, opts.interests) -
+          wanderCandidateScore(a.analysis, minutes, opts.pace, opts.interests) ||
+        a.waypointPoiIds.join(":").localeCompare(b.waypointPoiIds.join(":")),
+    )[0];
+    if (!selected) return directOnly();
+    return materializeWanderRoute({
+      from,
+      to,
+      analysis: selected.analysis,
+      direct,
+      requestedMinutes: minutes,
+      fit: "targeted",
+      waypointPoiIds: selected.waypointPoiIds,
+      opts,
+    });
   },
 };
 

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { services } from "./services";
 import type { BuildOptions } from "./routing";
-import type { InterestId, LatLng, RouteProfile, ScenicRoute } from "./types";
+import type { InterestId, LatLng, RouteProfile, ScenicRoute, WanderRoute } from "./types";
 
 interface ServiceResult<T> {
   data: T | null;
@@ -73,8 +73,8 @@ export function useWanderRoute(
   minutes: number,
   opts: BuildOptions,
   enabled = true,
-): ServiceResult<ScenicRoute> {
-  const [result, setResult] = useState<ServiceResult<ScenicRoute>>({
+): ServiceResult<WanderRoute> {
+  const [result, setResult] = useState<ServiceResult<WanderRoute>>({
     data: null,
     loading: enabled,
     error: null,
@@ -93,24 +93,27 @@ export function useWanderRoute(
       };
     }
     setResult({ data: null, loading: true, error: null });
-    services.routing
-      .wander({ lat: fromLat, lng: fromLng }, { lat: toLat, lng: toLng }, minutes, {
-        interests: interests.split(",").filter(Boolean) as InterestId[],
-        detourCap,
-        ...(pace ? { pace } : {}),
-      })
-      .then(
-        (data) => current && setResult({ data, loading: false, error: null }),
-        (error: unknown) =>
-          current &&
-          setResult({
-            data: null,
-            loading: false,
-            error: error instanceof Error ? error : new Error("Unable to build a wander"),
-          }),
-      );
+    const timer = window.setTimeout(() => {
+      services.routing
+        .wander({ lat: fromLat, lng: fromLng }, { lat: toLat, lng: toLng }, minutes, {
+          interests: interests.split(",").filter(Boolean) as InterestId[],
+          detourCap,
+          ...(pace ? { pace } : {}),
+        })
+        .then(
+          (data) => current && setResult({ data, loading: false, error: null }),
+          (error: unknown) =>
+            current &&
+            setResult({
+              data: null,
+              loading: false,
+              error: error instanceof Error ? error : new Error("Unable to build a wander"),
+            }),
+        );
+    }, 300);
     return () => {
       current = false;
+      window.clearTimeout(timer);
     };
   }, [fromLat, fromLng, toLat, toLng, minutes, interests, detourCap, pace, enabled]);
 
