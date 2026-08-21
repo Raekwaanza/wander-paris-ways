@@ -12,12 +12,21 @@ import { PLACES, placeById, searchPlaces } from "./places";
 import { POIS, poiById } from "./pois";
 import { scenicConfig, type ScenicProviderMode } from "./config";
 import { reverseGeocodeWithMapTiler, type ReverseGeocodeResult } from "./reverse-geocoding.server";
+import { searchParisWithMapTiler, type ForwardGeocodeResult } from "./maptiler-geocoding.server";
+import { livePlaceById, registerLivePlaces } from "./live-places";
 import type { LatLng, Place, Poi, ScenicRoute } from "./types";
 
 export interface GeocodingService {
-  search(query: string): Promise<Place[]>;
+  search(query: string, proximity?: LatLng): Promise<GeocodingSearchResult>;
   byId(id: string): Place | undefined;
   all(): Place[];
+}
+
+export interface GeocodingSearchResult {
+  places: Place[];
+  source: "maptiler" | "seeded";
+  fallback: boolean;
+  attribution?: string;
 }
 
 export interface ReverseGeocodingService {
@@ -37,12 +46,36 @@ export interface RoutingService {
 
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-const mockGeocoding: GeocodingService = {
-  async search(query) {
-    await delay(90);
-    return searchPlaces(query);
+const seededSearch = async (query: string): Promise<GeocodingSearchResult> => {
+  await delay(90);
+  return { places: searchPlaces(query), source: "seeded", fallback: false };
+};
+
+const hybridGeocoding: GeocodingService = {
+  async search(query, proximity) {
+    const trimmed = query.trim();
+    if (trimmed.length < 2) return seededSearch(trimmed);
+    let result: ForwardGeocodeResult;
+    try {
+      result = await searchParisWithMapTiler({
+        data: { query: trimmed, ...(proximity ? { proximity } : {}) },
+      });
+    } catch {
+      result = { status: "unavailable", places: [] };
+    }
+    if (result.status === "unavailable") {
+      const seeded = await seededSearch(trimmed);
+      return { ...seeded, fallback: true };
+    }
+    registerLivePlaces(result.places);
+    return {
+      places: result.places,
+      source: "maptiler",
+      fallback: false,
+      ...(result.attribution ? { attribution: result.attribution } : {}),
+    };
   },
-  byId: placeById,
+  byId: (id) => livePlaceById(id) ?? placeById(id),
   all: () => PLACES,
 };
 
@@ -84,7 +117,7 @@ interface ScenicServices {
 }
 
 const mockProviderSet = {
-  geocoding: mockGeocoding,
+  geocoding: hybridGeocoding,
   pois: mockPois,
   routing: mockRouting,
 };
