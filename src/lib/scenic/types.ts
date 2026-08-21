@@ -93,6 +93,8 @@ export interface ScoredRouteCandidate {
   analysis: RouteCorridorAnalysis;
   score: number;
   breakdown: CandidateScoreBreakdown;
+  /** POIs used by the bounded scoring heuristic, in contribution order. */
+  contributingPoiIds: string[];
   matchedInterests: InterestId[];
   extraDurationSeconds: number;
   extraDistanceMeters: number;

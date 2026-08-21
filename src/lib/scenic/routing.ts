@@ -1,5 +1,6 @@
 import { distanceKm, detourKm, lerp, pathLengthKm } from "./geo";
 import { POIS } from "./pois";
+import { matchedInterestsForPois, routeReasonsForPois } from "./route-discoveries";
 import type { InterestId, LatLng, Pace, Place, Poi, RouteProfile, ScenicRoute } from "./types";
 
 export type { Pace } from "./types";
@@ -126,64 +127,6 @@ function weavePath(points: LatLng[], amplitude: number): LatLng[] {
   return out;
 }
 
-function reasonLines(stops: Poi[]): { count: number; label: string }[] {
-  const buckets: { label: string; singular: string; test: (p: Poi) => boolean }[] = [
-    {
-      label: "historic covered passages",
-      singular: "historic covered passage",
-      test: (p) => p.category === "Historic Passage",
-    },
-    {
-      label: "gardens",
-      singular: "garden",
-      test: (p) => p.category === "Garden" || p.category === "Riverside Garden",
-    },
-    {
-      label: "historic streets, squares & courtyards",
-      singular: "historic street, square or courtyard",
-      test: (p) =>
-        p.category === "Historic Street" || p.category === "Square" || p.category === "Courtyards",
-    },
-    {
-      label: "churches",
-      singular: "church",
-      test: (p) => p.category === "Church",
-    },
-    {
-      label: "riverside stretches",
-      singular: "riverside stretch",
-      test: (p) =>
-        p.category === "Riverside" ||
-        p.category === "Island" ||
-        p.category === "Bridge" ||
-        p.category === "Canal",
-    },
-    {
-      label: "food streets & markets",
-      singular: "food street",
-      test: (p) => p.category === "Market Street" || p.category === "Covered Market",
-    },
-    {
-      label: "hidden courtyards & finds",
-      singular: "hidden find",
-      test: (p) => p.scores.hidden >= 9,
-    },
-  ];
-  const seen = new Set<string>();
-  const lines: { count: number; label: string }[] = [];
-  for (const b of buckets) {
-    const matched = stops.filter((p) => b.test(p) && !seen.has(p.id));
-    if (matched.length === 0) continue;
-    matched.forEach((p) => seen.add(p.id));
-    lines.push({ count: matched.length, label: matched.length === 1 ? b.singular : b.label });
-  }
-  return lines;
-}
-
-function matchedInterestsFor(stops: Poi[], interests: InterestId[]): InterestId[] {
-  return interests.filter((interest) => stops.some((poi) => poi.interests.includes(interest)));
-}
-
 const COPY: Record<RouteProfile, { title: string }> = {
   fastest: { title: "Fastest" },
   scenic: { title: "Scenic" },
@@ -209,7 +152,7 @@ function makeRoute(
   const path = profile === "fastest" ? weavePath(raw, 0.00035) : weavePath(raw, 0.0006);
   const km = pathLengthKm(path) * (profile === "fastest" ? NETWORK_FACTOR : NETWORK_FACTOR * 1.02);
   const minutes = Math.round(minutesFor(km, pace) + stops.length * 0.7);
-  const matchedInterests = matchedInterestsFor(stops, opts.interests);
+  const matchedInterests = matchedInterestsForPois(stops, opts.interests);
   const blurb =
     profile === "fastest"
       ? "Get there efficiently."
@@ -228,7 +171,7 @@ function makeRoute(
     discoveries: stops,
     path,
     matchedInterests,
-    reasons: reasonLines(stops),
+    reasons: routeReasonsForPois(stops),
     routingSource: "mock",
   };
 }

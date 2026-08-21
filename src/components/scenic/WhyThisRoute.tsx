@@ -3,13 +3,17 @@ import { interestLabel } from "@/lib/scenic/interests";
 
 export function WhyThisRoute({ route }: { route: ScenicRoute }) {
   if (route.discoveries.length === 0) {
+    const description =
+      route.routingSource === "openrouteservice"
+        ? route.profile === "scenic"
+          ? route.extraMinutes > 0
+            ? `This walking route adds about ${route.extraMinutes} minutes; no curated discoveries contributed to its selection.`
+            : "This route follows the direct walking path; no curated discoveries contributed to its selection."
+          : "This is the most direct pedestrian route we found."
+        : "This is an estimated direct route while pedestrian routing is unavailable.";
     return (
       <div className="text-sm text-muted-foreground">
-        <p>
-          {route.routingSource === "openrouteservice"
-            ? "This is the most direct pedestrian route we found."
-            : "This is an estimated direct route while pedestrian routing is unavailable."}
-        </p>
+        <p>{description}</p>
         {route.attribution && <p className="mt-1 text-xs">{route.attribution}</p>}
       </div>
     );
@@ -18,7 +22,20 @@ export function WhyThisRoute({ route }: { route: ScenicRoute }) {
     <div className="rounded-2xl border border-border bg-secondary/60 p-4">
       <p className="text-eyebrow text-muted-foreground">Why this route?</p>
       <p className="mt-2 text-sm">
-        {route.extraMinutes > 0 ? (
+        {route.routingSource === "openrouteservice" ? (
+          route.extraMinutes > 0 ? (
+            <>
+              This walking route adds about{" "}
+              <span className="font-semibold">{route.extraMinutes} minutes</span> and has curated
+              discoveries nearby.
+            </>
+          ) : (
+            <>
+              This route follows the direct walking path while still putting curated discoveries
+              nearby.
+            </>
+          )
+        ) : route.extraMinutes > 0 ? (
           <>
             This preview is estimated to add about{" "}
             <span className="font-semibold">{route.extraMinutes} minutes</span>.
@@ -44,7 +61,11 @@ export function WhyThisRoute({ route }: { route: ScenicRoute }) {
             </span>
           </>
         ) : (
-          <>This preview uses Scenic Route's curated discovery data.</>
+          <>
+            {route.routingSource === "openrouteservice"
+              ? "This route uses Scenic Route's curated discovery data."
+              : "This preview uses Scenic Route's curated discovery data."}
+          </>
         )}
       </p>
     </div>

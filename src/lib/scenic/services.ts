@@ -20,6 +20,7 @@ import { searchParisWithMapTiler, type ForwardGeocodeResult } from "./maptiler-g
 import { livePlaceById, registerLivePlaces } from "./live-places";
 import { analyzeRouteCorridor } from "./route-analysis";
 import { scoreCandidateCorridors } from "./route-scoring";
+import { matchedInterestsForPois, routeReasonsForPois } from "./route-discoveries";
 import type {
   CandidateScoringOptions,
   LatLng,
@@ -203,6 +204,38 @@ async function realWalkingCandidates(from: LatLng, to: LatLng): Promise<WalkingR
   }));
 }
 
+function materializeScenicRoute(scored: ScoredRouteCandidate, opts: BuildOptions): ScenicRoute {
+  const candidate = scored.analysis.candidate;
+  const contributingIds = new Set(scored.contributingPoiIds);
+  const discoveries = scored.analysis.pois
+    .filter(({ poi }) => contributingIds.has(poi.id))
+    .sort((a, b) =>
+      a.distanceAlongRouteMeters !== b.distanceAlongRouteMeters
+        ? a.distanceAlongRouteMeters - b.distanceAlongRouteMeters
+        : a.poi.id.localeCompare(b.poi.id),
+    )
+    .map(({ poi }) => poi);
+  const pacedMinutes = applyPaceMultiplier(candidate.durationSeconds / 60, opts.pace ?? "steady");
+  const minutes = candidate.durationSeconds > 0 ? Math.max(1, Math.round(pacedMinutes)) : 0;
+  const discoveryLabel = discoveries.length === 1 ? "discovery" : "discoveries";
+
+  return {
+    id: `ors-scenic-${candidate.id}`,
+    profile: "scenic",
+    title: "Scenic",
+    blurb: `A real walking route with ${discoveries.length} curated ${discoveryLabel} nearby.`,
+    minutes,
+    km: Math.round((candidate.distanceMeters / 1_000) * 10) / 10,
+    extraMinutes: Math.max(0, Math.round(scored.extraMinutes)),
+    discoveries,
+    path: candidate.path,
+    matchedInterests: matchedInterestsForPois(discoveries, opts.interests),
+    reasons: routeReasonsForPois(discoveries),
+    routingSource: "openrouteservice",
+    ...(candidate.attribution ? { attribution: candidate.attribution } : {}),
+  };
+}
+
 const hybridRouting: RoutingService = {
   candidates: realWalkingCandidates,
   async routes(from, to, opts) {
@@ -229,13 +262,26 @@ const hybridRouting: RoutingService = {
       routingSource: "openrouteservice",
       ...(provider.attribution ? { attribution: provider.attribution } : {}),
     };
-    return [
-      fastest,
-      ...mockRoutes.slice(1).map((route) => ({
-        ...route,
-        extraMinutes: Math.max(0, route.minutes - fastest.minutes),
-      })),
-    ];
+    const fallbackRoutes = mockRoutes.slice(1).map((route) => ({
+      ...route,
+      extraMinutes: Math.max(0, route.minutes - fastest.minutes),
+    }));
+
+    try {
+      const analyses = await curatedRouteAnalysis.corridors(candidates);
+      const scored = await curatedRouteAnalysis.scoreCorridors(analyses, {
+        interests: opts.interests,
+        detourCap: opts.detourCap,
+        pace: opts.pace ?? "steady",
+      });
+      const selected =
+        scored.find((candidate) => candidate.withinDetourCap) ??
+        scored.find((candidate) => candidate.analysis.candidate.id === provider.id);
+      if (!selected) return [fastest, ...fallbackRoutes];
+      return [fastest, materializeScenicRoute(selected, opts), fallbackRoutes[1]];
+    } catch {
+      return [fastest, ...fallbackRoutes];
+    }
   },
   async wander(from, to, minutes, opts) {
     await delay(140);
