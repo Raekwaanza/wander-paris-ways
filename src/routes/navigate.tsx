@@ -172,7 +172,10 @@ function NavigatePage() {
       );
     arrivalCountRef.current = arrived ? arrivalCountRef.current + 1 : 0;
     if (arrivalCountRef.current >= NAVIGATION_ARRIVAL_CONSECUTIVE_FIXES) {
-      navigate({ to: "/complete", search: { profile } });
+      navigate({
+        to: "/complete",
+        search: { profile, routeId: route.id, completion: "arrival" },
+      });
     }
   }, [navigate, navigationLocation.fix, navigationLocation.status, profile, route]);
 
@@ -350,7 +353,12 @@ function NavigatePage() {
 
             <button
               type="button"
-              onClick={() => navigate({ to: "/complete", search: { profile } })}
+              onClick={() =>
+                navigate({
+                  to: "/complete",
+                  search: { profile, routeId: route.id, completion: "manual" },
+                })
+              }
               className="flex min-h-13 w-full items-center justify-center gap-2 rounded-2xl border border-border bg-card py-3.5 text-sm font-medium hover:bg-secondary"
             >
               <Flag className="size-4" strokeWidth={1.75} />

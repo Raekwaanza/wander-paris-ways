@@ -1,19 +1,21 @@
 import { useCallback, useSyncExternalStore } from "react";
-import type { Poi, Preferences, SavedRoute, TripPlan } from "./types";
+import { MAX_ROUTE_FEEDBACK_ENTRIES, validateRouteFeedback } from "./route-feedback";
+import type { Poi, Preferences, RouteFeedback, SavedRoute, TripPlan } from "./types";
 import { migrateLegacyTripEndpoint, validateTripEndpoint } from "./trip-endpoints";
 
 const KEY = "scenic-route:v1";
 
 interface State {
-  version: 2;
+  version: 3;
   prefs: Preferences;
   savedRoutes: SavedRoute[];
   savedDiscoveries: string[];
   trip: TripPlan | null;
+  routeFeedback: RouteFeedback[];
 }
 
 const DEFAULT_STATE: State = {
-  version: 2,
+  version: 3,
   prefs: {
     interests: [],
     detourCap: 20,
@@ -24,6 +26,7 @@ const DEFAULT_STATE: State = {
   savedRoutes: [],
   savedDiscoveries: [],
   trip: null,
+  routeFeedback: [],
 };
 
 let state: State = DEFAULT_STATE;
@@ -51,7 +54,7 @@ function hydrate() {
     if (raw) {
       const parsed: unknown = JSON.parse(raw);
       if (!isRecord(parsed)) return;
-      const { prefs, savedRoutes, savedDiscoveries, trip } = parsed;
+      const { prefs, savedRoutes, savedDiscoveries, trip, routeFeedback } = parsed;
       state = {
         ...DEFAULT_STATE,
         prefs: isRecord(prefs) ? { ...DEFAULT_STATE.prefs, ...prefs } : DEFAULT_STATE.prefs,
@@ -60,8 +63,15 @@ function hydrate() {
           ? savedDiscoveries.filter((id): id is string => typeof id === "string")
           : [],
         trip: hydrateTrip(trip),
+        routeFeedback: Array.isArray(routeFeedback)
+          ? routeFeedback
+              .map(validateRouteFeedback)
+              .filter((feedback): feedback is RouteFeedback => feedback !== null)
+              .sort((a, b) => b.updatedAt - a.updatedAt)
+              .slice(0, MAX_ROUTE_FEEDBACK_ENTRIES)
+          : [],
       };
-      // Rewrite legacy or malformed trip data in the validated v2 shape while
+      // Rewrite legacy or malformed data in the validated v3 shape while
       // retaining independently stored preferences and saved items.
       persist();
       emit();
@@ -168,4 +178,35 @@ export function useSavedDiscoveries() {
     }));
   }, []);
   return { saved, toggle };
+}
+
+type RouteFeedbackInput = Omit<RouteFeedback, "createdAt" | "updatedAt">;
+
+export function useRouteFeedback() {
+  const feedback = useStore((s) => s.routeFeedback);
+  const upsertFeedback = useCallback((input: RouteFeedbackInput) => {
+    setState((s) => {
+      const existing = s.routeFeedback.find((item) => item.id === input.id);
+      const now = existing ? Math.max(Date.now(), existing.updatedAt + 1) : Date.now();
+      const record: RouteFeedback = {
+        ...input,
+        createdAt: existing?.createdAt ?? now,
+        updatedAt: now,
+      };
+      return {
+        ...s,
+        routeFeedback: [record, ...s.routeFeedback.filter((item) => item.id !== input.id)].slice(
+          0,
+          MAX_ROUTE_FEEDBACK_ENTRIES,
+        ),
+      };
+    });
+  }, []);
+  const removeFeedback = useCallback((id: string) => {
+    setState((s) => ({
+      ...s,
+      routeFeedback: s.routeFeedback.filter((item) => item.id !== id),
+    }));
+  }, []);
+  return { feedback, upsertFeedback, removeFeedback };
 }
