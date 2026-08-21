@@ -25,6 +25,11 @@ import {
   stabilizeNavigationMatch,
   type NavigationRouteMatch,
 } from "@/lib/scenic/navigation-progress";
+import {
+  initialRouteAdherenceState,
+  updateRouteAdherence,
+  type RouteAdherenceState,
+} from "@/lib/scenic/navigation-adherence";
 
 export const Route = createFileRoute("/navigate")({
   validateSearch: (s: Record<string, unknown>) => ({
@@ -57,6 +62,10 @@ function NavigatePage() {
   const [detail, setDetail] = useState<Poi | null>(null);
   const [skipped, setSkipped] = useState<string[]>([]);
   const [routeMatch, setRouteMatch] = useState<NavigationRouteMatch | null>(null);
+  const [routeAdherence, setRouteAdherence] = useState<RouteAdherenceState>(() =>
+    initialRouteAdherenceState(),
+  );
+  const routeAdherenceRef = useRef(routeAdherence);
   const arrivalCountRef = useRef(0);
 
   const fromResolution = trip ? resolveTripEndpoint(trip.from) : null;
@@ -87,32 +96,64 @@ function NavigatePage() {
 
   useEffect(() => {
     setRouteMatch(null);
+    const resetAdherence = initialRouteAdherenceState();
+    routeAdherenceRef.current = resetAdherence;
+    setRouteAdherence(resetAdherence);
     arrivalCountRef.current = 0;
   }, [route?.id]);
 
   useEffect(() => {
-    if (navigationLocation.status !== "tracking") arrivalCountRef.current = 0;
+    if (navigationLocation.status !== "tracking") {
+      const resetAdherence = initialRouteAdherenceState();
+      routeAdherenceRef.current = resetAdherence;
+      setRouteAdherence(resetAdherence);
+      arrivalCountRef.current = 0;
+    }
   }, [navigationLocation.status]);
 
   useEffect(() => {
-    if (!route || !navigationLocation.fix) return;
-    const next = matchNavigationPosition(navigationLocation.fix.point, route.path);
+    const fix = navigationLocation.fix;
+    if (!route || navigationLocation.status !== "tracking" || !fix || fix.accuracyMeters === null)
+      return;
+    const next = matchNavigationPosition(fix.point, route.path);
     if (!next) return;
+    if (
+      routeAdherenceRef.current.lastFixTimestamp !== null &&
+      fix.timestamp <= routeAdherenceRef.current.lastFixTimestamp
+    )
+      return;
+    const nextAdherence = updateRouteAdherence(routeAdherenceRef.current, {
+      distanceToRouteMeters: next.distanceToRouteMeters,
+      accuracyMeters: fix.accuracyMeters,
+      timestamp: fix.timestamp,
+    });
+    routeAdherenceRef.current = nextAdherence;
+    setRouteAdherence(nextAdherence);
+
+    if (nextAdherence.status === "off-route") {
+      arrivalCountRef.current = 0;
+      return;
+    }
+
     setRouteMatch((previous) => stabilizeNavigationMatch(previous, next));
+
+    if (nextAdherence.status !== "on-route") {
+      arrivalCountRef.current = 0;
+      return;
+    }
 
     const destination = route.path.at(-1);
     const arrived =
       next.progress >= NAVIGATION_ARRIVAL_PROGRESS &&
       Boolean(
         destination &&
-        distanceKm(navigationLocation.fix.point, destination) * 1_000 <=
-          NAVIGATION_ARRIVAL_DISTANCE_METERS,
+        distanceKm(fix.point, destination) * 1_000 <= NAVIGATION_ARRIVAL_DISTANCE_METERS,
       );
     arrivalCountRef.current = arrived ? arrivalCountRef.current + 1 : 0;
     if (arrivalCountRef.current >= NAVIGATION_ARRIVAL_CONSECUTIVE_FIXES) {
       navigate({ to: "/complete", search: { profile } });
     }
-  }, [navigate, navigationLocation.fix, profile, route]);
+  }, [navigate, navigationLocation.fix, navigationLocation.status, profile, route]);
 
   if (missingEndpoint) {
     const missingLocation =
@@ -247,6 +288,21 @@ function NavigatePage() {
                 onRetry={navigationLocation.retry}
               />
             </div>
+
+            {navigationLocation.status === "tracking" && routeAdherence.status === "off-route" && (
+              <div
+                className="surface-card border border-amber-500/30 bg-amber-50/80 p-4 dark:bg-amber-950/20"
+                aria-live="polite"
+                role="status"
+              >
+                <p className="text-sm font-semibold">You may be off the planned route</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Your location has stayed away from the highlighted route for several GPS updates.
+                  The route hasn't changed. Return to the highlighted route when it is safe and
+                  convenient.
+                </p>
+              </div>
+            )}
 
             {upcoming ? (
               <DiscoveryCard
