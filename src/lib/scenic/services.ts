@@ -22,6 +22,7 @@ import { analyzeRouteCorridor } from "./route-analysis";
 import { scoreCandidateCorridors } from "./route-scoring";
 import { matchedInterestsForPois, routeReasonsForPois } from "./route-discoveries";
 import { selectExplorerCandidate, selectScenicCandidate } from "./route-selection";
+import { routeGeometrySignature } from "./geo";
 import type {
   CandidateScoringOptions,
   LatLng,
@@ -145,7 +146,7 @@ function stableFastestId(from: LatLng, to: LatLng) {
 }
 
 function stableCandidateId(from: LatLng, to: LatLng, providerRank: number, path: LatLng[]) {
-  const geometry = path.map(({ lat, lng }) => `${lat.toFixed(6)},${lng.toFixed(6)}`).join(";");
+  const geometry = routeGeometrySignature(path);
   const value = `${routeCoordinateKey(from, to)}:${providerRank}:${geometry}`;
   let hash = 2166136261;
   for (let index = 0; index < value.length; index += 1) {
@@ -201,6 +202,12 @@ async function realWalkingCandidates(from: LatLng, to: LatLng): Promise<WalkingR
     path: candidate.path,
     distanceMeters: candidate.distanceMeters,
     durationSeconds: candidate.durationSeconds,
+    ...(candidate.startOffsetMeters !== undefined
+      ? { startOffsetMeters: candidate.startOffsetMeters }
+      : {}),
+    ...(candidate.endOffsetMeters !== undefined
+      ? { endOffsetMeters: candidate.endOffsetMeters }
+      : {}),
     ...(candidate.attribution ? { attribution: candidate.attribution } : {}),
   }));
 }

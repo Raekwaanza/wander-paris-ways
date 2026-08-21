@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { distanceKm, routeGeometrySignature } from "./geo";
 import type { LatLng } from "./types";
 
 export const OPENROUTESERVICE_ENDPOINT =
@@ -17,6 +18,10 @@ export interface PedestrianRouteResult {
   path: LatLng[];
   distanceMeters: number;
   durationSeconds: number;
+  /** Geometric distance from the requested point, not ORS Snap API distance. */
+  startOffsetMeters?: number;
+  /** Geometric distance from the requested point, not ORS Snap API distance. */
+  endOffsetMeters?: number;
   attribution?: string;
 }
 
@@ -48,7 +53,10 @@ function validCoordinatePair(value: unknown): value is [number, number] {
   );
 }
 
-export function normalizeOpenRouteServiceResponse(payload: unknown): PedestrianRouteResult[] {
+export function normalizeOpenRouteServiceResponse(
+  payload: unknown,
+  requestedEndpoints?: RoutingInput,
+): PedestrianRouteResult[] {
   if (!payload || typeof payload !== "object") return [];
   const response = payload as Record<string, unknown>;
   if (!Array.isArray(response["features"])) return [];
@@ -79,16 +87,21 @@ export function normalizeOpenRouteServiceResponse(payload: unknown): PedestrianR
       duration < 0
     )
       continue;
-    const signature = coordinates
-      .map(([lng, lat]) => `${lng.toFixed(6)},${lat.toFixed(6)}`)
-      .join(";");
+    const path = coordinates.map(([lng, lat]) => ({ lat, lng }));
+    const signature = routeGeometrySignature(path);
     if (geometrySignatures.has(signature)) continue;
     geometrySignatures.add(signature);
     candidates.push({
       providerRank,
-      path: coordinates.map(([lng, lat]) => ({ lat, lng })),
+      path,
       distanceMeters: distance,
       durationSeconds: duration,
+      ...(requestedEndpoints
+        ? {
+            startOffsetMeters: distanceKm(requestedEndpoints.from, path[0]!) * 1_000,
+            endOffsetMeters: distanceKm(path[path.length - 1]!, requestedEndpoints.to) * 1_000,
+          }
+        : {}),
       ...(attribution ? { attribution } : {}),
     });
   }
@@ -148,7 +161,7 @@ async function requestRoute(input: RoutingInput, apiKey: string) {
       signal: controller.signal,
     });
     if (!response.ok) return [];
-    return normalizeOpenRouteServiceResponse(await response.json());
+    return normalizeOpenRouteServiceResponse(await response.json(), input);
   } catch {
     return [];
   } finally {

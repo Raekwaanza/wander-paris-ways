@@ -141,7 +141,12 @@ export function ParisMap(props: ParisMapProps) {
             const styles = getComputedStyle(container);
             const primary = styles.getPropertyValue("--map-route-primary").trim();
             const muted = styles.getPropertyValue("--map-route-muted").trim();
-            map.addSource(ROUTE_SOURCE, { type: "geojson", data: initialRouteDataRef.current });
+            map.addSource(ROUTE_SOURCE, {
+              type: "geojson",
+              data: initialRouteDataRef.current,
+              // Route guidance must retain every provider vertex at every zoom level.
+              tolerance: 0,
+            });
             map.addLayer({
               id: ROUTE_INACTIVE_LAYER,
               type: "line",

@@ -32,6 +32,10 @@ export interface WalkingRouteCandidate {
   path: LatLng[];
   distanceMeters: number;
   durationSeconds: number;
+  /** Geometric route-end offset; distinct from an ORS Snap API distance. */
+  startOffsetMeters?: number;
+  /** Geometric route-end offset; distinct from an ORS Snap API distance. */
+  endOffsetMeters?: number;
   attribution?: string;
 }
 

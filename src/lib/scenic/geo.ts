@@ -31,6 +31,11 @@ export function distanceKm(a: LatLng, b: LatLng): number {
   return Math.sqrt(dx * dx + dy * dy);
 }
 
+/** Stable, value-based identity for a route geometry (roughly 10 cm in Paris). */
+export function routeGeometrySignature(path: readonly LatLng[]): string {
+  return path.map(({ lat, lng }) => `${lat.toFixed(6)},${lng.toFixed(6)}`).join(";");
+}
+
 function hasFiniteCoordinates(point: LatLng): boolean {
   return Number.isFinite(point.lat) && Number.isFinite(point.lng);
 }
