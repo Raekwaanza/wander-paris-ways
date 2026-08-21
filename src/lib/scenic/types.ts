@@ -55,6 +55,21 @@ export interface Poi extends LatLng {
   neighborhood: string;
 }
 
+/** A curated discovery's geometric relationship to a walking route. */
+export interface RouteCorridorPoi {
+  poi: Poi;
+  distanceFromRouteMeters: number;
+  distanceAlongRouteMeters: number;
+  progress: number;
+}
+
+/** Corridor facts for a candidate, kept separate from the raw provider route. */
+export interface RouteCorridorAnalysis {
+  candidate: WalkingRouteCandidate;
+  corridorRadiusMeters: number;
+  pois: RouteCorridorPoi[];
+}
+
 export interface Place extends LatLng {
   id: string;
   name: string;
