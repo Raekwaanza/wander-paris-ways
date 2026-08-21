@@ -155,6 +155,7 @@ function scoreAnalysis(
     analysis,
     score,
     breakdown,
+    contributingPoiIds: rankedPois.map(({ corridorPoi }) => corridorPoi.poi.id),
     matchedInterests: options.interests.filter((interest) => representedInterests.has(interest)),
     extraDurationSeconds,
     extraDistanceMeters,
