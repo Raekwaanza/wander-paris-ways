@@ -3,8 +3,9 @@ import { useState } from "react";
 import { ArrowRight, MapPin } from "lucide-react";
 import { ParisMap } from "@/components/scenic/ParisMap";
 import { PlacePicker } from "@/components/scenic/PlacePicker";
-import { CURRENT_LOCATION_ID, placeById } from "@/lib/scenic/places";
-import { buildRoutes } from "@/lib/scenic/routing";
+import { CURRENT_LOCATION_ID } from "@/lib/scenic/places";
+import { services } from "@/lib/scenic/services";
+import { useRoutes } from "@/lib/scenic/use-services";
 import { usePreferences, useTrip } from "@/lib/scenic/store";
 import type { Place } from "@/lib/scenic/types";
 
@@ -28,20 +29,21 @@ export const Route = createFileRoute("/")({
   component: Landing,
 });
 
-const demoRoutes = buildRoutes(placeById("opera")!, placeById("place-des-vosges")!, {
-  interests: ["architecture", "hidden"],
-  detourCap: 20,
-});
-
 function Landing() {
   const navigate = useNavigate();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [destination, setDestination] = useState<Place | null>(null);
   const [prefs, setPrefs] = usePreferences();
   const [, setTrip] = useTrip();
+  const demoFrom = services.geocoding.byId("opera")!;
+  const demoTo = services.geocoding.byId("place-des-vosges")!;
+  const { data: demoRoutes } = useRoutes(demoFrom, demoTo, {
+    interests: ["architecture", "hidden"],
+    detourCap: 20,
+  });
 
   const go = (dest: Place | null) => {
-    const to = dest ?? placeById("place-des-vosges")!;
+    const to = dest ?? services.geocoding.byId("place-des-vosges")!;
     setPrefs({ seenIntro: true });
     setTrip({
       fromId: CURRENT_LOCATION_ID,
@@ -58,8 +60,8 @@ function Landing() {
     <main className="relative min-h-[100dvh] overflow-hidden">
       <div className="absolute inset-0 opacity-[0.55]">
         <ParisMap
-          routes={[{ route: demoRoutes[1]!, active: true }]}
-          discoveries={demoRoutes[1]!.discoveries}
+          routes={demoRoutes ? [{ route: demoRoutes[1]!, active: true }] : []}
+          discoveries={demoRoutes?.[1]?.discoveries ?? []}
           interactive={false}
           padding={10}
         />
@@ -114,7 +116,10 @@ function Landing() {
           </p>
 
           <div className="mt-8 flex items-center gap-4 text-sm">
-            <Link to="/explore" className="font-medium text-primary underline-offset-4 hover:underline">
+            <Link
+              to="/explore"
+              className="font-medium text-primary underline-offset-4 hover:underline"
+            >
               Open the map
             </Link>
             <Link

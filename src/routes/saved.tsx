@@ -5,7 +5,7 @@ import { ParisMap } from "@/components/scenic/ParisMap";
 import { SplitShell } from "@/components/scenic/SplitShell";
 import { DiscoveryDetail } from "@/components/scenic/DiscoveryDetail";
 import { useSavedDiscoveries, useSavedRoutes } from "@/lib/scenic/store";
-import { poiById } from "@/lib/scenic/pois";
+import { services } from "@/lib/scenic/services";
 import type { Poi } from "@/lib/scenic/types";
 
 export const Route = createFileRoute("/saved")({
@@ -27,7 +27,7 @@ function SavedPage() {
   const { savedRoutes, removeRoute } = useSavedRoutes();
   const { saved } = useSavedDiscoveries();
   const [detail, setDetail] = useState<Poi | null>(null);
-  const pois = saved.map(poiById).filter((p): p is Poi => !!p);
+  const pois = saved.map(services.pois.byId).filter((p): p is Poi => !!p);
 
   return (
     <>

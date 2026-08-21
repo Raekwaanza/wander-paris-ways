@@ -5,7 +5,8 @@ import { ParisMap } from "@/components/scenic/ParisMap";
 import { PlacePicker } from "@/components/scenic/PlacePicker";
 import { SplitShell } from "@/components/scenic/SplitShell";
 import { InterestChips } from "@/components/scenic/InterestChips";
-import { CURRENT_LOCATION_ID, placeById } from "@/lib/scenic/places";
+import { CURRENT_LOCATION_ID } from "@/lib/scenic/places";
+import { services } from "@/lib/scenic/services";
 import { usePreferences, useTrip } from "@/lib/scenic/store";
 import type { Place } from "@/lib/scenic/types";
 
@@ -33,9 +34,9 @@ function Explore() {
   const [prefs, setPrefs] = usePreferences();
   const [trip, setTrip] = useTrip();
   const [from, setFrom] = useState<Place>(
-    () => placeById(trip?.fromId ?? CURRENT_LOCATION_ID) ?? placeById(CURRENT_LOCATION_ID)!,
+    () => services.geocoding.byId(trip?.fromId ?? CURRENT_LOCATION_ID) ?? services.geocoding.byId(CURRENT_LOCATION_ID)!,
   );
-  const [to, setTo] = useState<Place | null>(() => placeById(trip?.toId ?? "") ?? null);
+  const [to, setTo] = useState<Place | null>(() => services.geocoding.byId(trip?.toId ?? "") ?? null);
   const [picker, setPicker] = useState<"from" | "to" | null>(null);
   const [showPrivacy, setShowPrivacy] = useState(true);
 
@@ -170,7 +171,7 @@ function Explore() {
                       <button
                         type="button"
                         onClick={() => {
-                          setFrom(placeById(CURRENT_LOCATION_ID)!);
+                          setFrom(services.geocoding.byId(CURRENT_LOCATION_ID)!);
                           setShowPrivacy(false);
                         }}
                         className="min-h-10 rounded-full bg-primary px-4 text-sm font-medium text-primary-foreground"

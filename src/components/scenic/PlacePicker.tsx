@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { PLACES, searchPlaces } from "@/lib/scenic/places";
+import { services } from "@/lib/scenic/services";
 import type { Place } from "@/lib/scenic/types";
 import { LocateFixed, Search } from "lucide-react";
 
@@ -22,8 +22,22 @@ export function PlacePicker({
   currentLocationId = "opera",
 }: Props) {
   const [q, setQ] = useState("");
-  const results = useMemo(() => searchPlaces(q), [q]);
-  const current = PLACES.find((p) => p.id === currentLocationId);
+  const [results, setResults] = useState<Place[]>([]);
+  const [searchFailed, setSearchFailed] = useState(false);
+  const current = services.geocoding.byId(currentLocationId);
+
+  useEffect(() => {
+    if (!open) return;
+    let currentRequest = true;
+    setSearchFailed(false);
+    services.geocoding.search(q).then(
+      (places) => currentRequest && setResults(places),
+      () => currentRequest && setSearchFailed(true),
+    );
+    return () => {
+      currentRequest = false;
+    };
+  }, [open, q]);
 
   const pick = (p: Place) => {
     onPick(p);
@@ -78,10 +92,16 @@ export function PlacePicker({
               </span>
             </button>
           ))}
-          {results.length === 0 && (
+          {searchFailed ? (
             <p className="px-3 py-8 text-center text-sm text-muted-foreground">
-              Nothing here yet. Scenic Route covers central Paris for now.
+              Search is unavailable right now. Please try again.
             </p>
+          ) : (
+            results.length === 0 && (
+              <p className="px-3 py-8 text-center text-sm text-muted-foreground">
+                Nothing here yet. Scenic Route covers central Paris for now.
+              </p>
+            )
           )}
         </div>
       </DialogContent>
