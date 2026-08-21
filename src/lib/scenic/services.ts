@@ -31,7 +31,9 @@ import {
   shortlistWanderAnchors,
   WANDER_V1,
   wanderCandidateScore,
+  stableWanderId,
 } from "./wander-routing";
+import type { SharedRoutePayloadV1, SharedRouteResolution } from "./shared-route";
 import type {
   CandidateScoringOptions,
   LatLng,
@@ -71,6 +73,7 @@ export interface RoutingService {
   routes(from: LatLng, to: LatLng, opts: BuildOptions): Promise<ScenicRoute[]>;
   candidates(from: LatLng, to: LatLng): Promise<WalkingRouteCandidate[]>;
   wander(from: LatLng, to: LatLng, minutes: number, opts: BuildOptions): Promise<WanderRoute>;
+  resolveShared(payload: SharedRoutePayloadV1): Promise<SharedRouteResolution>;
 }
 
 export interface RouteAnalysisService {
@@ -263,6 +266,130 @@ function materializeDiscoveryRoute(
 
 const hybridRouting: RoutingService = {
   candidates: realWalkingCandidates,
+  async resolveShared(payload) {
+    const from = payload.from;
+    const to = payload.to;
+    const response = await cachedOpenRouteServiceRoute(from, to).catch(() => null);
+    if (!response || response.status !== "success") return { status: "unavailable" };
+    const directCandidates = await realWalkingCandidates(from, to);
+    const direct = directCandidates[0];
+    if (!direct) return { status: "unavailable" };
+    const opts: BuildOptions = {
+      interests: payload.interests,
+      detourCap: payload.detourCap,
+      pace: payload.pace,
+    };
+
+    if (payload.mode === "route") {
+      if (payload.profile === "fastest") {
+        if (stableFastestId(from, to) !== payload.routeId) return { status: "changed" };
+        const paced = applyPaceMultiplier(direct.durationSeconds / 60, payload.pace);
+        return {
+          status: "exact",
+          route: {
+            id: payload.routeId,
+            profile: "fastest",
+            title: "Fastest",
+            blurb: "The direct walking route used as the comparison baseline.",
+            minutes: direct.durationSeconds > 0 ? Math.max(1, Math.round(paced)) : 0,
+            km: Math.round((direct.distanceMeters / 1_000) * 10) / 10,
+            extraMinutes: 0,
+            discoveries: [],
+            path: direct.path,
+            matchedInterests: [],
+            reasons: [],
+            routingSource: "openrouteservice",
+            ...(direct.attribution ? { attribution: direct.attribution } : {}),
+          },
+        };
+      }
+      const candidate = directCandidates.find(
+        ({ id }) => `ors-${payload.profile}-${id}` === payload.routeId,
+      );
+      if (!candidate) return { status: "changed" };
+      const analysis = await curatedRouteAnalysis.corridor(candidate);
+      const requested = new Set(payload.discoveryPoiIds);
+      const discoveries = analysis.pois
+        .filter(({ poi }) => requested.has(poi.id))
+        .sort(
+          (a, b) =>
+            a.distanceAlongRouteMeters - b.distanceAlongRouteMeters ||
+            a.poi.id.localeCompare(b.poi.id),
+        )
+        .map(({ poi }) => poi);
+      const paced = applyPaceMultiplier(candidate.durationSeconds / 60, payload.pace);
+      const directPaced = applyPaceMultiplier(direct.durationSeconds / 60, payload.pace);
+      return {
+        status: "exact",
+        route: {
+          id: payload.routeId,
+          profile: payload.profile,
+          title: payload.profile === "scenic" ? "Scenic" : "Explorer",
+          blurb: `A real walking route with ${discoveries.length} curated discoveries nearby.`,
+          minutes: candidate.durationSeconds > 0 ? Math.max(1, Math.round(paced)) : 0,
+          km: Math.round((candidate.distanceMeters / 1_000) * 10) / 10,
+          extraMinutes: Math.max(0, Math.round(paced - directPaced)),
+          discoveries,
+          path: candidate.path,
+          matchedInterests: matchedInterestsForPois(discoveries, payload.interests),
+          reasons: routeReasonsForPois(discoveries),
+          routingSource: "openrouteservice",
+          ...(candidate.attribution ? { attribution: candidate.attribution } : {}),
+        },
+      };
+    }
+
+    const wander = payload.wander!;
+    let candidate = direct;
+    if (wander.fit === "targeted") {
+      const waypoints = wander.waypointPoiIds.map((id) => mockPois.byId(id));
+      if (waypoints.some((poi) => !poi)) return { status: "changed" };
+      const via = await routeViaOpenRouteService({
+        data: { points: [from, ...(waypoints as Poi[]), to] },
+      }).catch(() => null);
+      if (!via || via.status !== "success" || !via.candidates[0]) return { status: "unavailable" };
+      const result = via.candidates[0];
+      candidate = {
+        id: stableCandidateId(from, to, 0, result.path),
+        provider: "openrouteservice",
+        providerRank: 0,
+        path: result.path,
+        distanceMeters: result.distanceMeters,
+        durationSeconds: result.durationSeconds,
+        ...(result.attribution ? { attribution: result.attribution } : {}),
+      };
+    }
+    if (
+      stableWanderId(from, to, wander.requestedMinutes, wander.waypointPoiIds, candidate.path) !==
+      payload.routeId
+    )
+      return { status: "changed" };
+    const analysis = await curatedRouteAnalysis.corridor(candidate);
+    const materialized = materializeWanderRoute({
+      from,
+      to,
+      analysis,
+      direct,
+      requestedMinutes: wander.requestedMinutes,
+      fit: wander.fit,
+      waypointPoiIds: wander.waypointPoiIds,
+      opts,
+    });
+    const requested = new Set(payload.discoveryPoiIds);
+    const discoveries = analysis.pois
+      .filter(({ poi }) => requested.has(poi.id))
+      .sort((a, b) => a.distanceAlongRouteMeters - b.distanceAlongRouteMeters)
+      .map(({ poi }) => poi);
+    return {
+      status: "exact",
+      route: {
+        ...materialized,
+        discoveries,
+        matchedInterests: matchedInterestsForPois(discoveries, payload.interests),
+        reasons: routeReasonsForPois(discoveries),
+      },
+    };
+  },
   async routes(from, to, opts) {
     const mockRoutes = buildRoutes(from, to, opts);
     const candidates = await realWalkingCandidates(from, to);

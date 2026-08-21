@@ -16,6 +16,7 @@ import { Route as NavigateRouteImport } from './routes/navigate'
 import { Route as PlanRouteImport } from './routes/plan'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as SavedRouteImport } from './routes/saved'
+import { Route as SharedRouteImport } from './routes/shared'
 import { Route as WanderRouteImport } from './routes/wander'
 
 const IndexRoute = IndexRouteImport.update({
@@ -53,6 +54,11 @@ const SavedRoute = SavedRouteImport.update({
   path: '/saved',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SharedRoute = SharedRouteImport.update({
+  id: '/shared',
+  path: '/shared',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const WanderRoute = WanderRouteImport.update({
   id: '/wander',
   path: '/wander',
@@ -67,6 +73,7 @@ export interface FileRoutesByFullPath {
   '/plan': typeof PlanRoute
   '/profile': typeof ProfileRoute
   '/saved': typeof SavedRoute
+  '/shared': typeof SharedRoute
   '/wander': typeof WanderRoute
 }
 export interface FileRoutesByTo {
@@ -77,6 +84,7 @@ export interface FileRoutesByTo {
   '/plan': typeof PlanRoute
   '/profile': typeof ProfileRoute
   '/saved': typeof SavedRoute
+  '/shared': typeof SharedRoute
   '/wander': typeof WanderRoute
 }
 export interface FileRoutesById {
@@ -88,6 +96,7 @@ export interface FileRoutesById {
   '/plan': typeof PlanRoute
   '/profile': typeof ProfileRoute
   '/saved': typeof SavedRoute
+  '/shared': typeof SharedRoute
   '/wander': typeof WanderRoute
 }
 export interface FileRouteTypes {
@@ -100,6 +109,7 @@ export interface FileRouteTypes {
     | '/plan'
     | '/profile'
     | '/saved'
+    | '/shared'
     | '/wander'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -110,6 +120,7 @@ export interface FileRouteTypes {
     | '/plan'
     | '/profile'
     | '/saved'
+    | '/shared'
     | '/wander'
   id:
     | '__root__'
@@ -120,6 +131,7 @@ export interface FileRouteTypes {
     | '/plan'
     | '/profile'
     | '/saved'
+    | '/shared'
     | '/wander'
   fileRoutesById: FileRoutesById
 }
@@ -131,6 +143,7 @@ export interface RootRouteChildren {
   PlanRoute: typeof PlanRoute
   ProfileRoute: typeof ProfileRoute
   SavedRoute: typeof SavedRoute
+  SharedRoute: typeof SharedRoute
   WanderRoute: typeof WanderRoute
 }
 
@@ -185,6 +198,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SavedRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/shared': {
+      id: '/shared'
+      path: '/shared'
+      fullPath: '/shared'
+      preLoaderRoute: typeof SharedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/wander': {
       id: '/wander'
       path: '/wander'
@@ -203,6 +223,7 @@ const rootRouteChildren: RootRouteChildren = {
   PlanRoute: PlanRoute,
   ProfileRoute: ProfileRoute,
   SavedRoute: SavedRoute,
+  SharedRoute: SharedRoute,
   WanderRoute: WanderRoute,
 }
 export const routeTree = rootRouteImport
