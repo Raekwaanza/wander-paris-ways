@@ -15,6 +15,7 @@ import { usePreferences, useTrip } from "@/lib/scenic/store";
 import type { Poi, RouteProfile } from "@/lib/scenic/types";
 import { LocationRecovery } from "@/components/scenic/LocationRecovery";
 import { resolveTripEndpoint, resolvedPlace } from "@/lib/scenic/trip-endpoints";
+import { isNetworkNavigableRoute } from "@/lib/scenic/navigation";
 
 export const Route = createFileRoute("/navigate")({
   validateSearch: (s: Record<string, unknown>) => ({
@@ -72,16 +73,18 @@ function NavigatePage() {
   );
 
   useEffect(() => {
-    if (!running) return;
+    if (!running || !route || !isNetworkNavigableRoute(route)) return;
     const t = setInterval(() => {
       setProgress((p) => Math.min(1, p + 0.012));
     }, 420);
     return () => clearInterval(t);
-  }, [running]);
+  }, [route, running]);
 
   useEffect(() => {
-    if (progress >= 1) navigate({ to: "/complete", search: { profile } });
-  }, [progress, navigate, profile]);
+    if (route && isNetworkNavigableRoute(route) && progress >= 1) {
+      navigate({ to: "/complete", search: { profile } });
+    }
+  }, [progress, navigate, profile, route]);
 
   if (missingEndpoint) {
     const missingLocation =
@@ -103,6 +106,33 @@ function NavigatePage() {
           ) : (
             <ScenicLoader />
           )
+        }
+      />
+    );
+  }
+
+  if (!isNetworkNavigableRoute(route)) {
+    return (
+      <SplitShell
+        showNav={false}
+        map={<ParisMap start={from} end={to} padding={6} />}
+        panel={
+          <div className="space-y-4 px-5 pt-8 pb-6">
+            <div>
+              <p className="text-eyebrow text-muted-foreground">Route preview</p>
+              <h1 className="text-display mt-1 text-2xl">This route is preview-only</h1>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Scenic, Explorer, and Wander routes are still being matched to the real pedestrian
+                network. Choose an available walking route for navigation right now.
+              </p>
+            </div>
+            <Link
+              to="/plan"
+              className="flex min-h-13 w-full items-center justify-center rounded-2xl bg-primary px-4 py-3.5 text-sm font-medium text-primary-foreground shadow-lift hover:opacity-90"
+            >
+              Back to routes
+            </Link>
+          </div>
         }
       />
     );

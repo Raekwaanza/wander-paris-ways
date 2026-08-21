@@ -14,6 +14,7 @@ import { usePreferences, useTrip } from "@/lib/scenic/store";
 import type { Poi, RouteProfile } from "@/lib/scenic/types";
 import { LocationRecovery } from "@/components/scenic/LocationRecovery";
 import { resolveTripEndpoint, resolvedPlace } from "@/lib/scenic/trip-endpoints";
+import { isNetworkNavigableRoute } from "@/lib/scenic/navigation";
 
 export const Route = createFileRoute("/plan")({
   head: () => ({
@@ -38,7 +39,7 @@ function PlanPage() {
   const navigate = useNavigate();
   const [trip] = useTrip();
   const [prefs] = usePreferences();
-  const [selected, setSelected] = useState<RouteProfile>("scenic");
+  const [selected, setSelected] = useState<RouteProfile>("fastest");
   const [showLoader, setShowLoader] = useState(true);
   const [detail, setDetail] = useState<Poi | null>(null);
 
@@ -94,6 +95,7 @@ function PlanPage() {
   }
 
   const active = routes.find((r) => r.profile === selected) ?? routes[1]!;
+  const navigationReady = isNetworkNavigableRoute(active);
   const noWorthwhileDetour = active.discoveries.length === 0 && selected !== "fastest";
 
   return (
@@ -133,7 +135,7 @@ function PlanPage() {
                   key={r.profile}
                   route={r}
                   selected={r.profile === selected}
-                  recommended={r.profile === "scenic"}
+                  recommended={r.profile === "scenic" && isNetworkNavigableRoute(r)}
                   onSelect={() => setSelected(r.profile)}
                 />
               ))}
@@ -177,14 +179,22 @@ function PlanPage() {
               </div>
             )}
 
-            <button
-              type="button"
-              onClick={() => navigate({ to: "/navigate", search: { profile: selected } })}
-              className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-base font-medium text-primary-foreground shadow-lift transition-opacity hover:opacity-90"
-            >
-              Take {active.title} Route
-              <ArrowRight className="size-4" strokeWidth={2} />
-            </button>
+            <div>
+              <button
+                type="button"
+                disabled={!navigationReady}
+                onClick={() => navigate({ to: "/navigate", search: { profile: selected } })}
+                className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-base font-medium text-primary-foreground shadow-lift transition-opacity enabled:hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {navigationReady ? `Take ${active.title} Route` : "Preview only"}
+                {navigationReady && <ArrowRight className="size-4" strokeWidth={2} />}
+              </button>
+              {!navigationReady && (
+                <p className="mt-2 text-center text-sm text-muted-foreground">
+                  This route concept isn't ready for walking directions yet.
+                </p>
+              )}
+            </div>
           </div>
         }
       />
