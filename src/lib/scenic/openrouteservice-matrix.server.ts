@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import type { LatLng } from "./types";
+import { fixtureWalkingDurations, isScenicE2EFixtureMode } from "./e2e-provider-fixtures.server";
 
 export const OPENROUTESERVICE_MATRIX_ENDPOINT =
   "https://api.heigit.org/openrouteservice/v2/matrix/foot-walking";
@@ -95,6 +96,9 @@ async function requestMatrix(input: WalkingMatrixInput, apiKey: string) {
 export const walkingDurationMatrix = createServerFn({ method: "POST" })
   .validator(validateInput)
   .handler(async ({ data }): Promise<WalkingMatrixResponse> => {
+    if (isScenicE2EFixtureMode()) {
+      return { status: "success", durationsSeconds: fixtureWalkingDurations(data.locations) };
+    }
     const apiKey = process.env["OPENROUTESERVICE_API_KEY"]?.trim();
     if (!apiKey) return { status: "unavailable" };
     const key = `${MATRIX_CACHE_VERSION}:${data.locations
