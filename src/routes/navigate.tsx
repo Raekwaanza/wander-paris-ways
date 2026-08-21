@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Flag } from "lucide-react";
 import { ParisMap } from "@/components/scenic/ParisMap";
 import { SplitShell } from "@/components/scenic/SplitShell";
@@ -30,6 +30,11 @@ import {
   updateRouteAdherence,
   type RouteAdherenceState,
 } from "@/lib/scenic/navigation-adherence";
+import {
+  navigationDiscoveryState,
+  placeDiscoveriesAlongRoute,
+  selectNavigationDiscovery,
+} from "@/lib/scenic/navigation-discoveries";
 
 export const Route = createFileRoute("/navigate")({
   validateSearch: (s: Record<string, unknown>) => ({
@@ -93,9 +98,25 @@ function NavigatePage() {
   );
   const networkNavigable = Boolean(route && isNetworkNavigableRoute(route));
   const navigationLocation = useNavigationLocation(networkNavigable);
+  const discoveryPlacements = useMemo(
+    () => (route ? placeDiscoveriesAlongRoute(route.discoveries, route.path) : []),
+    [route],
+  );
+  const skippedIds = useMemo(() => new Set(skipped), [skipped]);
+  const activeDiscovery = selectNavigationDiscovery(
+    discoveryPlacements,
+    routeMatch?.distanceAlongRouteMeters ?? null,
+    skippedIds,
+  );
+  const navigationDiscoveries = useMemo(
+    () => discoveryPlacements.map(({ poi }) => poi),
+    [discoveryPlacements],
+  );
 
   useEffect(() => {
     setRouteMatch(null);
+    setSkipped([]);
+    setDetail(null);
     const resetAdherence = initialRouteAdherenceState();
     routeAdherenceRef.current = resetAdherence;
     setRouteAdherence(resetAdherence);
@@ -213,13 +234,17 @@ function NavigatePage() {
   const remainingKm =
     progress === null ? route.km : Math.round(route.km * (1 - progress) * 10) / 10;
 
-  const visible = route.discoveries.filter((d) => !skipped.includes(d.id));
-  // Temporary coarse sequencing based on live route progress; POI-specific logic lands in 13.1.
-  const upcomingIndex = Math.min(
-    visible.length - 1,
-    Math.floor((progress ?? 0) * (visible.length + 0.4)),
-  );
-  const upcoming = visible[Math.max(0, upcomingIndex)] ?? null;
+  const discoveryContext =
+    routeMatch === null
+      ? "Route discovery"
+      : activeDiscovery &&
+          navigationDiscoveryState(activeDiscovery, routeMatch.distanceAlongRouteMeters) ===
+            "current"
+        ? "Nearby"
+        : activeDiscovery &&
+            activeDiscovery.distanceAlongRouteMeters >= routeMatch.distanceAlongRouteMeters
+          ? "Coming up near the route"
+          : undefined;
 
   return (
     <>
@@ -231,8 +256,8 @@ function NavigatePage() {
             start={from}
             end={to}
             user={navigationLocation.fix?.point}
-            discoveries={route.discoveries}
-            activeDiscoveryId={upcoming?.id ?? null}
+            discoveries={navigationDiscoveries}
+            activeDiscoveryId={activeDiscovery?.poi.id ?? null}
             onSelectDiscovery={setDetail}
             padding={6}
           />
@@ -304,12 +329,13 @@ function NavigatePage() {
               </div>
             )}
 
-            {upcoming ? (
+            {activeDiscovery ? (
               <DiscoveryCard
-                key={upcoming.id}
-                poi={upcoming}
-                onLearnMore={() => setDetail(upcoming)}
-                onSkip={() => setSkipped((s) => [...s, upcoming.id])}
+                key={activeDiscovery.poi.id}
+                poi={activeDiscovery.poi}
+                contextLabel={discoveryContext}
+                onLearnMore={() => setDetail(activeDiscovery.poi)}
+                onSkip={() => setSkipped((s) => [...s, activeDiscovery.poi.id])}
               />
             ) : (
               <div className="surface-card p-4">

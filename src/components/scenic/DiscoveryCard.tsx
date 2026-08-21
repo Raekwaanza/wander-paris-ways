@@ -7,10 +7,11 @@ interface Props {
   poi: Poi;
   onLearnMore: () => void;
   onSkip?: (() => void) | undefined;
+  contextLabel?: string | undefined;
   className?: string | undefined;
 }
 
-export function DiscoveryCard({ poi, onLearnMore, onSkip, className }: Props) {
+export function DiscoveryCard({ poi, onLearnMore, onSkip, contextLabel, className }: Props) {
   const { saved, toggle } = useSavedDiscoveries();
   const isSaved = saved.includes(poi.id);
 
@@ -18,6 +19,9 @@ export function DiscoveryCard({ poi, onLearnMore, onSkip, className }: Props) {
     <article className={cn("surface-card animate-sheet-up p-4", className)}>
       <div className="flex items-start justify-between gap-3">
         <div>
+          {contextLabel && (
+            <p className="text-eyebrow mb-1 text-muted-foreground">{contextLabel}</p>
+          )}
           <h3 className="text-display text-lg leading-tight">{poi.name}</h3>
           <p className="mt-0.5 text-xs text-muted-foreground">{poi.kicker}</p>
         </div>
