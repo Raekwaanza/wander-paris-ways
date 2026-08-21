@@ -2,8 +2,14 @@ import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { services } from "@/lib/scenic/services";
 import type { Place } from "@/lib/scenic/types";
-import { LocateFixed, Search } from "lucide-react";
-import { currentLocationErrorMessage, requestCurrentLocation } from "@/lib/scenic/current-location";
+import { LoaderCircle, LocateFixed, Search } from "lucide-react";
+import {
+  currentLocationErrorMessage,
+  getCurrentLocationFix,
+  requestCurrentLocation,
+} from "@/lib/scenic/current-location";
+
+const SEARCH_DEBOUNCE_MS = 300;
 
 interface Props {
   open: boolean;
@@ -17,6 +23,8 @@ export function PlacePicker({ open, onOpenChange, title, onPick, showCurrentLoca
   const [q, setQ] = useState("");
   const [results, setResults] = useState<Place[]>([]);
   const [searchFailed, setSearchFailed] = useState(false);
+  const [searching, setSearching] = useState(false);
+  const [attribution, setAttribution] = useState<string | null>(null);
   const [locationPending, setLocationPending] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
 
@@ -24,12 +32,30 @@ export function PlacePicker({ open, onOpenChange, title, onPick, showCurrentLoca
     if (!open) return;
     let currentRequest = true;
     setSearchFailed(false);
-    services.geocoding.search(q).then(
-      (places) => currentRequest && setResults(places),
-      () => currentRequest && setSearchFailed(true),
+    const liveQuery = q.trim().length >= 2;
+    if (liveQuery) setSearching(true);
+    const timer = window.setTimeout(
+      () => {
+        services.geocoding.search(q, getCurrentLocationFix()?.place).then(
+          (result) => {
+            if (!currentRequest) return;
+            setResults(result.places);
+            setSearchFailed(result.fallback);
+            setAttribution(result.attribution ?? null);
+            setSearching(false);
+          },
+          () => {
+            if (!currentRequest) return;
+            setSearchFailed(true);
+            setSearching(false);
+          },
+        );
+      },
+      liveQuery ? SEARCH_DEBOUNCE_MS : 0,
     );
     return () => {
       currentRequest = false;
+      window.clearTimeout(timer);
     };
   }, [open, q]);
 
@@ -67,6 +93,12 @@ export function PlacePicker({ open, onOpenChange, title, onPick, showCurrentLoca
               placeholder="Address, landmark, café, museum…"
               className="min-h-11 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
             />
+            {searching && (
+              <LoaderCircle
+                className="size-4 shrink-0 animate-spin text-muted-foreground"
+                aria-label="Searching Paris"
+              />
+            )}
           </div>
         </DialogHeader>
         <div className="max-h-[52vh] overflow-y-auto p-2">
@@ -111,16 +143,20 @@ export function PlacePicker({ open, onOpenChange, title, onPick, showCurrentLoca
               </span>
             </button>
           ))}
-          {searchFailed ? (
-            <p className="px-3 py-8 text-center text-sm text-muted-foreground">
-              Search is unavailable right now. Please try again.
+          {searchFailed && (
+            <p className="px-3 pt-2 text-center text-xs text-muted-foreground">
+              Live search is unavailable. Showing Scenic suggestions.
             </p>
-          ) : (
-            results.length === 0 && (
-              <p className="px-3 py-8 text-center text-sm text-muted-foreground">
-                Nothing here yet. Scenic Route covers central Paris for now.
-              </p>
-            )
+          )}
+          {!searching && results.length === 0 && (
+            <p className="px-3 py-8 text-center text-sm text-muted-foreground">
+              {q.trim().length >= 2
+                ? "No Paris matches found."
+                : "Nothing here yet. Scenic Route covers central Paris for now."}
+            </p>
+          )}
+          {attribution && results.length > 0 && (
+            <p className="px-3 py-2 text-center text-[10px] text-muted-foreground">{attribution}</p>
           )}
         </div>
       </DialogContent>

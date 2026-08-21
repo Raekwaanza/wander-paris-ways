@@ -13,7 +13,7 @@ import { interestLabel } from "@/lib/scenic/interests";
 import type { RouteProfile } from "@/lib/scenic/types";
 import { cn } from "@/lib/utils";
 import { LocationRecovery } from "@/components/scenic/LocationRecovery";
-import { isLiveCurrentLocationId, resolveTripPlace } from "@/lib/scenic/current-location";
+import { isVolatileTripPlaceId, resolveTripPlace } from "@/lib/scenic/current-location";
 
 export const Route = createFileRoute("/complete")({
   validateSearch: (s: Record<string, unknown>) => ({
@@ -56,11 +56,13 @@ function CompletePage() {
 
   const fromId = trip?.fromId ?? CURRENT_LOCATION_ID;
   const resolvedFrom = resolveTripPlace(fromId);
-  const missingLiveLocation = isLiveCurrentLocationId(fromId) && !resolvedFrom;
+  const toId = trip?.toId ?? "place-des-vosges";
+  const resolvedTo = resolveTripPlace(toId);
+  const missingVolatilePlace =
+    (isVolatileTripPlaceId(fromId) && !resolvedFrom) ||
+    (isVolatileTripPlaceId(toId) && !resolvedTo);
   const from = resolvedFrom ?? services.geocoding.byId(CURRENT_LOCATION_ID)!;
-  const to =
-    services.geocoding.byId(trip?.toId ?? "place-des-vosges") ??
-    services.geocoding.byId("place-des-vosges")!;
+  const to = resolvedTo ?? services.geocoding.byId("place-des-vosges")!;
 
   const { data: route, error } = useTripRoute(
     from,
@@ -75,7 +77,7 @@ function CompletePage() {
     trip?.wanderMinutes,
   );
 
-  if (missingLiveLocation) return <LocationRecovery />;
+  if (missingVolatilePlace) return <LocationRecovery reason="route-details" />;
 
   if (!route) {
     return (
