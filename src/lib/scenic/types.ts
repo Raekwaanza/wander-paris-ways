@@ -22,6 +22,17 @@ export interface LatLng {
   lng: number;
 }
 
+/** A real, unclassified pedestrian path returned by a routing provider. */
+export interface WalkingRouteCandidate {
+  id: string;
+  provider: "openrouteservice";
+  providerRank: number;
+  path: LatLng[];
+  distanceMeters: number;
+  durationSeconds: number;
+  attribution?: string;
+}
+
 export interface Poi extends LatLng {
   id: string;
   name: string;
