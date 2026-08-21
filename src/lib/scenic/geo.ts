@@ -6,6 +6,17 @@ export const LAT_ORIGIN = 48.885;
 export const X_SCALE = 1000;
 export const Y_SCALE = 1514;
 
+/** Physical distance scales for the local, central-Paris projection. */
+export const KM_PER_LAT_DEGREE = 111.2;
+export const KM_PER_LNG_DEGREE_PARIS = 73.4;
+
+export interface NearestPointOnPathResult {
+  distanceKm: number;
+  pathDistanceKm: number;
+  progress: number;
+  nearestPoint: LatLng;
+}
+
 export function project(p: LatLng): { x: number; y: number } {
   return {
     x: (p.lng - LNG_ORIGIN) * X_SCALE,
@@ -15,9 +26,72 @@ export function project(p: LatLng): { x: number; y: number } {
 
 /** Distance in kilometres. */
 export function distanceKm(a: LatLng, b: LatLng): number {
-  const dx = (b.lng - a.lng) * 73.4;
-  const dy = (b.lat - a.lat) * 111.2;
+  const dx = (b.lng - a.lng) * KM_PER_LNG_DEGREE_PARIS;
+  const dy = (b.lat - a.lat) * KM_PER_LAT_DEGREE;
   return Math.sqrt(dx * dx + dy * dy);
+}
+
+function hasFiniteCoordinates(point: LatLng): boolean {
+  return Number.isFinite(point.lat) && Number.isFinite(point.lng);
+}
+
+/**
+ * Finds the closest projection of a point onto a path using physical kilometre
+ * scaling. Cumulative distance, rather than segment index, determines progress.
+ */
+export function nearestPointOnPath(point: LatLng, path: LatLng[]): NearestPointOnPathResult | null {
+  if (!hasFiniteCoordinates(point)) return null;
+  const validPath = path.filter(hasFiniteCoordinates);
+  if (validPath.length === 0) return null;
+  if (validPath.length === 1) {
+    return {
+      distanceKm: distanceKm(point, validPath[0]!),
+      pathDistanceKm: 0,
+      progress: 0,
+      nearestPoint: { ...validPath[0]! },
+    };
+  }
+
+  const totalPathKm = pathLengthKm(validPath);
+  let traversedKm = 0;
+  let nearest: Omit<NearestPointOnPathResult, "progress"> | null = null;
+
+  for (let index = 1; index < validPath.length; index += 1) {
+    const start = validPath[index - 1]!;
+    const end = validPath[index]!;
+    const segmentX = (end.lng - start.lng) * KM_PER_LNG_DEGREE_PARIS;
+    const segmentY = (end.lat - start.lat) * KM_PER_LAT_DEGREE;
+    const pointX = (point.lng - start.lng) * KM_PER_LNG_DEGREE_PARIS;
+    const pointY = (point.lat - start.lat) * KM_PER_LAT_DEGREE;
+    const segmentLengthSquared = segmentX * segmentX + segmentY * segmentY;
+    const projection =
+      segmentLengthSquared === 0
+        ? 0
+        : Math.min(1, Math.max(0, (pointX * segmentX + pointY * segmentY) / segmentLengthSquared));
+    const nearestPoint = lerp(start, end, projection);
+    const segmentKm = Math.sqrt(segmentLengthSquared);
+    const candidate = {
+      distanceKm: distanceKm(point, nearestPoint),
+      pathDistanceKm: traversedKm + segmentKm * projection,
+      nearestPoint,
+    };
+
+    if (
+      nearest === null ||
+      candidate.distanceKm < nearest.distanceKm ||
+      (candidate.distanceKm === nearest.distanceKm &&
+        candidate.pathDistanceKm < nearest.pathDistanceKm)
+    ) {
+      nearest = candidate;
+    }
+    traversedKm += segmentKm;
+  }
+
+  if (!nearest) return null;
+  return {
+    ...nearest,
+    progress: totalPathKm === 0 ? 0 : nearest.pathDistanceKm / totalPathKm,
+  };
 }
 
 export function pathLengthKm(path: LatLng[]): number {

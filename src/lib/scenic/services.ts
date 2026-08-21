@@ -18,7 +18,15 @@ import { scenicConfig, type ScenicProviderMode } from "./config";
 import { reverseGeocodeWithMapTiler, type ReverseGeocodeResult } from "./reverse-geocoding.server";
 import { searchParisWithMapTiler, type ForwardGeocodeResult } from "./maptiler-geocoding.server";
 import { livePlaceById, registerLivePlaces } from "./live-places";
-import type { LatLng, Place, Poi, ScenicRoute, WalkingRouteCandidate } from "./types";
+import { analyzeRouteCorridor } from "./route-analysis";
+import type {
+  LatLng,
+  Place,
+  Poi,
+  RouteCorridorAnalysis,
+  ScenicRoute,
+  WalkingRouteCandidate,
+} from "./types";
 
 export interface GeocodingService {
   search(query: string, proximity?: LatLng): Promise<GeocodingSearchResult>;
@@ -47,6 +55,14 @@ export interface RoutingService {
   routes(from: LatLng, to: LatLng, opts: BuildOptions): Promise<ScenicRoute[]>;
   candidates(from: LatLng, to: LatLng): Promise<WalkingRouteCandidate[]>;
   wander(from: LatLng, to: LatLng, minutes: number, opts: BuildOptions): Promise<ScenicRoute>;
+}
+
+export interface RouteAnalysisService {
+  corridor(candidate: WalkingRouteCandidate, radiusMeters?: number): Promise<RouteCorridorAnalysis>;
+  corridors(
+    candidates: WalkingRouteCandidate[],
+    radiusMeters?: number,
+  ): Promise<RouteCorridorAnalysis[]>;
 }
 
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -93,6 +109,17 @@ const mockPois: PoiService = {
   },
   byId: poiById,
   all: () => POIS,
+};
+
+const curatedRouteAnalysis: RouteAnalysisService = {
+  async corridor(candidate, radiusMeters) {
+    return analyzeRouteCorridor(candidate, mockPois.all(), radiusMeters);
+  },
+  async corridors(candidates, radiusMeters) {
+    return candidates.map((candidate) =>
+      analyzeRouteCorridor(candidate, mockPois.all(), radiusMeters),
+    );
+  },
 };
 
 function stableFastestId(from: LatLng, to: LatLng) {
@@ -214,6 +241,7 @@ interface ScenicServices {
   geocoding: GeocodingService;
   pois: PoiService;
   routing: RoutingService;
+  routeAnalysis: RouteAnalysisService;
   reverseGeocoding: ReverseGeocodingService;
   provider: {
     configuredMode: ScenicProviderMode;
@@ -225,6 +253,7 @@ const hybridProviderSet = {
   geocoding: hybridGeocoding,
   pois: mockPois,
   routing: hybridRouting,
+  routeAnalysis: curatedRouteAnalysis,
 };
 
 export function createScenicServices(config = scenicConfig): ScenicServices {
