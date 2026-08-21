@@ -14,8 +14,12 @@ import {
   getCurrentLocationFix,
   isLiveCurrentLocationId,
   requestCurrentLocation,
-  resolveTripPlace,
 } from "@/lib/scenic/current-location";
+import {
+  resolveTripEndpoint,
+  resolvedPlace,
+  tripEndpointFromPlace,
+} from "@/lib/scenic/trip-endpoints";
 
 export const Route = createFileRoute("/explore")({
   head: () => ({
@@ -42,11 +46,11 @@ function Explore() {
   const [trip, setTrip] = useTrip();
   const [from, setFrom] = useState<Place>(
     () =>
-      resolveTripPlace(trip?.fromId ?? CURRENT_LOCATION_ID) ??
+      (trip ? resolvedPlace(resolveTripEndpoint(trip.from)) : undefined) ??
       services.geocoding.byId(CURRENT_LOCATION_ID)!,
   );
   const [to, setTo] = useState<Place | null>(
-    () => services.geocoding.byId(trip?.toId ?? "") ?? null,
+    () => (trip ? resolvedPlace(resolveTripEndpoint(trip.to)) : undefined) ?? null,
   );
   const [picker, setPicker] = useState<"from" | "to" | null>(null);
   const [showPrivacy, setShowPrivacy] = useState(true);
@@ -61,8 +65,8 @@ function Explore() {
       return;
     }
     setTrip({
-      fromId: from.id,
-      toId: to.id,
+      from: tripEndpointFromPlace(from),
+      to: tripEndpointFromPlace(to),
       interests: prefs.interests,
       detourCap: prefs.detourCap,
       mode: "route",

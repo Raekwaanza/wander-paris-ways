@@ -8,6 +8,7 @@ import { services } from "@/lib/scenic/services";
 import { useRoutes } from "@/lib/scenic/use-services";
 import { usePreferences, useTrip } from "@/lib/scenic/store";
 import type { Place } from "@/lib/scenic/types";
+import { tripEndpointFromPlace } from "@/lib/scenic/trip-endpoints";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -46,8 +47,8 @@ function Landing() {
     const to = dest ?? services.geocoding.byId("place-des-vosges")!;
     setPrefs({ seenIntro: true });
     setTrip({
-      fromId: CURRENT_LOCATION_ID,
-      toId: to.id,
+      from: { type: "seeded", id: CURRENT_LOCATION_ID },
+      to: tripEndpointFromPlace(to),
       interests: prefs.interests,
       detourCap: prefs.detourCap,
       mode: "route",

@@ -75,9 +75,23 @@ export interface ScenicRoute {
   majorRoadReduction: number;
 }
 
+export type TripEndpoint =
+  | { type: "seeded"; id: string }
+  | {
+      type: "geocoded";
+      id: string;
+      provider: "maptiler";
+      name: string;
+      kind: string;
+      area: string;
+      lat: number;
+      lng: number;
+    }
+  | { type: "current-location"; id: "live-current-location" };
+
 export interface TripPlan {
-  fromId: string;
-  toId: string;
+  from: TripEndpoint;
+  to: TripEndpoint;
   interests: InterestId[];
   detourCap: number;
   mode: "route" | "wander";
