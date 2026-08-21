@@ -14,6 +14,7 @@ import type { Place } from "@/lib/scenic/types";
 import { cn } from "@/lib/utils";
 import { getCurrentLocationFix } from "@/lib/scenic/current-location";
 import { tripEndpointFromPlace } from "@/lib/scenic/trip-endpoints";
+import { isNetworkNavigableRoute } from "@/lib/scenic/navigation";
 
 export const Route = createFileRoute("/wander")({
   head: () => ({
@@ -73,6 +74,7 @@ function WanderPage() {
     hour: "numeric",
     minute: "2-digit",
   });
+  const navigationReady = isNetworkNavigableRoute(route);
 
   const start = () => {
     setTrip({
@@ -221,12 +223,18 @@ function WanderPage() {
 
             <button
               type="button"
+              disabled={!navigationReady}
               onClick={start}
-              className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-base font-medium text-primary-foreground shadow-lift hover:opacity-90"
+              className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-base font-medium text-primary-foreground shadow-lift enabled:hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Start wandering
-              <ArrowRight className="size-4" strokeWidth={2} />
+              {navigationReady ? "Start wandering" : "Preview only"}
+              {navigationReady && <ArrowRight className="size-4" strokeWidth={2} />}
             </button>
+            {!navigationReady && (
+              <p className="-mt-3 text-center text-sm text-muted-foreground">
+                This Wander concept isn't ready for walking directions yet.
+              </p>
+            )}
           </div>
         }
       />
