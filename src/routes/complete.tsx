@@ -19,6 +19,17 @@ import {
   ROUTE_FEEDBACK_RATINGS,
   routeFeedbackId,
 } from "@/lib/scenic/route-feedback";
+import { buildSharedRouteUrl, createSharedRoutePayload } from "@/lib/scenic/shared-route";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export const Route = createFileRoute("/complete")({
   validateSearch: (s: Record<string, unknown>) => ({
@@ -51,6 +62,9 @@ function CompletePage() {
   const { saveRoute } = useSavedRoutes();
   const { feedback, upsertFeedback, removeFeedback } = useRouteFeedback();
   const [saved, setSaved] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const [confirmLocationShare, setConfirmLocationShare] = useState(false);
+  const [manualShareUrl, setManualShareUrl] = useState<string | null>(null);
 
   const fromResolution = trip ? resolveTripEndpoint(trip.from) : null;
   const toResolution = trip ? resolveTripEndpoint(trip.to) : null;
@@ -109,6 +123,11 @@ function CompletePage() {
     completedRouteId === route.id &&
     completion !== undefined &&
     trip !== null;
+  const shareEligible =
+    route.routingSource === "openrouteservice" &&
+    completedRouteId !== undefined &&
+    completedRouteId === route.id &&
+    trip !== null;
   const feedbackId = trip ? routeFeedbackId(trip.createdAt, route.id) : null;
   const currentFeedback = feedbackEligible
     ? feedback.find((item) => item.id === feedbackId)
@@ -152,6 +171,49 @@ function CompletePage() {
       extraMinutes: route.extraMinutes,
       completionKind: completion === "arrival" ? "automatic-arrival" : "manual-end",
     });
+  };
+
+  const performShare = async () => {
+    if (!shareEligible || !trip || sharing) return;
+    const payload = createSharedRoutePayload({ route, trip, from, to, pace: prefs.pace });
+    if (!payload) {
+      toast.error("Sharing is available for real walking routes.");
+      return;
+    }
+    const url = buildSharedRouteUrl(payload, window.location);
+    setSharing(true);
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: `${route.title} Route: ${payload.from.name} → ${payload.to.name}`,
+          text: "A walking route through Paris with curated discoveries nearby.",
+          url,
+        });
+        toast.success("Route shared");
+      } else if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+        toast.success("Link copied");
+      } else {
+        setManualShareUrl(url);
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      setManualShareUrl(url);
+    } finally {
+      setSharing(false);
+    }
+  };
+
+  const onShare = () => {
+    if (!shareEligible) {
+      toast.error("Sharing is available for real walking routes.");
+      return;
+    }
+    if (trip?.from.type === "current-location" || trip?.to.type === "current-location") {
+      setConfirmLocationShare(true);
+      return;
+    }
+    void performShare();
   };
 
   return (
@@ -279,15 +341,12 @@ function CompletePage() {
             </button>
             <button
               type="button"
-              onClick={() =>
-                toast("Link copied", {
-                  description: `${from.name} → ${to.name} · ${route.title}`,
-                })
-              }
+              onClick={onShare}
+              disabled={sharing}
               className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-border bg-card text-sm font-medium hover:bg-secondary"
             >
               <Share2 className="size-4" strokeWidth={1.75} />
-              Share route
+              {sharing ? "Sharing…" : "Share route"}
             </button>
             <button
               type="button"
@@ -297,6 +356,47 @@ function CompletePage() {
               Plan another walk
             </button>
           </div>
+          <AlertDialog open={confirmLocationShare} onOpenChange={setConfirmLocationShare}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Share this starting point?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {trip?.from.type === "current-location" && trip?.to.type !== "current-location"
+                    ? "This route began from Current location. The share link will include the start and end points of this walk so the route can be opened on another device."
+                    : "This share link will include the route's start and end points so the walk can be opened on another device."}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={() => void performShare()}>
+                  Share route
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+          <AlertDialog
+            open={manualShareUrl !== null}
+            onOpenChange={(open) => !open && setManualShareUrl(null)}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Copy this link</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Automatic copying isn't available. Select and copy this route link manually.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <input
+                readOnly
+                value={manualShareUrl ?? ""}
+                onFocus={(event) => event.currentTarget.select()}
+                aria-label="Share route link"
+                className="w-full rounded-xl border border-border bg-card px-3 py-2 text-sm"
+              />
+              <AlertDialogFooter>
+                <AlertDialogCancel>Done</AlertDialogCancel>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       }
     />

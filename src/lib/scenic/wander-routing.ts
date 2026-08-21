@@ -206,7 +206,7 @@ export function wanderCandidateScore(
   );
 }
 
-function stableWanderId(
+export function stableWanderId(
   from: LatLng,
   to: LatLng,
   requestedMinutes: number,
