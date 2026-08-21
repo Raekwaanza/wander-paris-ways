@@ -138,17 +138,14 @@ function reasonLines(stops: Poi[]): { count: number; label: string }[] {
       test: (p) => p.category === "Garden" || p.category === "Riverside Garden",
     },
     {
-      label: "architecturally notable streets & squares",
-      singular: "architecturally notable street",
+      label: "historic streets, squares & courtyards",
+      singular: "historic street, square or courtyard",
       test: (p) =>
-        (p.category === "Historic Street" ||
-          p.category === "Square" ||
-          p.category === "Courtyards") &&
-        p.scores.architecture >= 6,
+        p.category === "Historic Street" || p.category === "Square" || p.category === "Courtyards",
     },
     {
-      label: "lesser-known churches",
-      singular: "lesser-known church",
+      label: "churches",
+      singular: "church",
       test: (p) => p.category === "Church",
     },
     {
@@ -182,23 +179,8 @@ function reasonLines(stops: Poi[]): { count: number; label: string }[] {
   return lines;
 }
 
-function matchFor(stops: Poi[], interests: InterestId[]) {
-  if (stops.length === 0) return { percent: 0, matched: [] as InterestId[] };
-  if (interests.length === 0) {
-    const avg = stops.reduce((s, p) => s + p.scores.scenic, 0) / stops.length;
-    return { percent: Math.round(Math.min(97, 60 + avg * 3.5)), matched: [] as InterestId[] };
-  }
-  const matched = interests.filter((i) => stops.some((p) => p.interests.includes(i)));
-  const hitRatio =
-    stops.reduce(
-      (s, p) => s + Math.min(1, p.interests.filter((i) => interests.includes(i)).length / 2),
-      0,
-    ) / stops.length;
-  const coverage = matched.length / interests.length;
-  return {
-    percent: Math.round(Math.min(98, 52 + hitRatio * 26 + coverage * 24)),
-    matched,
-  };
+function matchedInterestsFor(stops: Poi[], interests: InterestId[]): InterestId[] {
+  return interests.filter((interest) => stops.some((poi) => poi.interests.includes(interest)));
 }
 
 const COPY: Record<RouteProfile, { title: string }> = {
@@ -226,14 +208,13 @@ function makeRoute(
   const path = profile === "fastest" ? weavePath(raw, 0.00035) : weavePath(raw, 0.0006);
   const km = pathLengthKm(path) * (profile === "fastest" ? NETWORK_FACTOR : NETWORK_FACTOR * 1.02);
   const minutes = Math.round(minutesFor(km, pace) + stops.length * 0.7);
-  const { percent, matched } = matchFor(stops, opts.interests);
-  const majorRoadReduction = Math.min(64, 12 + stops.length * 11);
+  const matchedInterests = matchedInterestsFor(stops, opts.interests);
   const blurb =
     profile === "fastest"
       ? "Get there efficiently."
       : profile === "scenic"
-        ? `More beautiful streets and ${stops.length} discoveries along the way.`
-        : "The most interesting route within your available time.";
+        ? `A discovery-rich preview through ${stops.length} curated Paris stops.`
+        : "A longer preview built around curated Paris discoveries.";
 
   return {
     id: `${profile}-${Math.round(km * 100)}`,
@@ -245,11 +226,8 @@ function makeRoute(
     extraMinutes: Math.max(0, minutes - fastestMinutes),
     discoveries: stops,
     path,
-    matchPercent: percent,
-    matchedInterests: matched,
-    score: Math.round(stops.reduce((s, p) => s + baseAppeal(p), 0) * 10) / 10,
+    matchedInterests,
     reasons: reasonLines(stops),
-    majorRoadReduction,
     routingSource: "mock",
   };
 }
@@ -306,6 +284,6 @@ export function buildWander(
   return {
     ...route,
     title: `${minutesAvailable}-Minute Wander`,
-    blurb: "A wander that still gets you there on time.",
+    blurb: "An estimated wander built around curated discoveries.",
   };
 }

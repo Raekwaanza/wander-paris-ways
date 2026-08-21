@@ -5,7 +5,11 @@ export function WhyThisRoute({ route }: { route: ScenicRoute }) {
   if (route.discoveries.length === 0) {
     return (
       <div className="text-sm text-muted-foreground">
-        <p>No detour here — this is simply the most direct way there.</p>
+        <p>
+          {route.routingSource === "openrouteservice"
+            ? "This is the most direct pedestrian route we found."
+            : "This is an estimated direct route while pedestrian routing is unavailable."}
+        </p>
         {route.attribution && <p className="mt-1 text-xs">{route.attribution}</p>}
       </div>
     );
@@ -16,11 +20,11 @@ export function WhyThisRoute({ route }: { route: ScenicRoute }) {
       <p className="mt-2 text-sm">
         {route.extraMinutes > 0 ? (
           <>
-            This walk adds <span className="font-semibold">{route.extraMinutes} minutes</span> and
-            takes you through:
+            This preview is estimated to add about{" "}
+            <span className="font-semibold">{route.extraMinutes} minutes</span>.
           </>
         ) : (
-          <>This walk takes you through:</>
+          <>This preview is built around:</>
         )}
       </p>
       <ul className="mt-2 space-y-1.5">
@@ -30,23 +34,17 @@ export function WhyThisRoute({ route }: { route: ScenicRoute }) {
             {r.label}
           </li>
         ))}
-        <li className="flex gap-2 text-sm text-muted-foreground">
-          <span className="font-semibold text-foreground tabular-nums">
-            {route.majorRoadReduction}%
-          </span>
-          less time on major roads
-        </li>
       </ul>
       <p className="mt-3 text-xs text-muted-foreground">
         {route.matchedInterests.length > 0 ? (
           <>
-            Based on your interests:{" "}
+            Matches your interests:{" "}
             <span className="text-foreground">
               {route.matchedInterests.map(interestLabel).join(" · ")}
             </span>
           </>
         ) : (
-          <>No interests set — scored on scenic value, quiet streets and discovery density.</>
+          <>This preview uses Scenic Route's curated discovery data.</>
         )}
       </p>
     </div>

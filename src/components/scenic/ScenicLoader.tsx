@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 const MESSAGES = [
-  "Looking for quieter streets…",
+  "Looking through curated discoveries…",
   "Checking gardens and passages…",
   "Matching places to your interests…",
   "Balancing discovery with your arrival time…",

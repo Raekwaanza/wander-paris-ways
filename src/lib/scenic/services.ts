@@ -160,11 +160,8 @@ const hybridRouting: RoutingService = {
       extraMinutes: 0,
       discoveries: [],
       path: provider.path,
-      matchPercent: 0,
       matchedInterests: [],
-      score: 0,
       reasons: [],
-      majorRoadReduction: 0,
       routingSource: "openrouteservice",
       ...(provider.attribution ? { attribution: provider.attribution } : {}),
     };

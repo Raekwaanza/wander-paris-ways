@@ -22,12 +22,12 @@ export const Route = createFileRoute("/wander")({
       {
         name: "description",
         content:
-          "Tell Scenic Route where you need to be and how long you have. It builds a wander that arrives on time.",
+          "Tell Scenic Route where you need to be and how long you have. It builds an estimated wander preview.",
       },
       { property: "og:title", content: "I have 45 minutes before dinner" },
       {
         property: "og:description",
-        content: "A wandering walk through Paris that still gets you there on time.",
+        content: "An estimated wandering route preview through Paris.",
       },
     ],
   }),
@@ -185,6 +185,9 @@ function WanderPage() {
               <div className="flex items-center gap-2">
                 <Clock3 className="size-4 text-primary" strokeWidth={1.75} />
                 <h3 className="text-display text-lg">{minutes}-Minute Wander</h3>
+                <span className="rounded-full border border-border bg-secondary px-2 py-0.5 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+                  Preview
+                </span>
               </div>
               <p className="mt-2 text-xs tracking-wide text-muted-foreground uppercase">
                 You'll discover
@@ -203,7 +206,7 @@ function WanderPage() {
                 )}
               </ul>
               <p className="mt-3 text-sm text-muted-foreground">
-                {route.km} km · arrive around {arrival}
+                ≈{route.km} km · estimated arrival around {arrival}
               </p>
             </div>
 

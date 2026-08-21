@@ -22,12 +22,12 @@ export const Route = createFileRoute("/plan")({
       {
         name: "description",
         content:
-          "Fastest, Scenic or Explorer: see exactly what each extra minute of your Paris walk buys you.",
+          "Fastest, Scenic or Explorer: compare direct routing with estimated discovery previews.",
       },
       { property: "og:title", content: "Fastest, Scenic or Explorer" },
       {
         property: "og:description",
-        content: "See what the detour is actually worth before you take it.",
+        content: "Compare direct routing with curated walking previews before you set out.",
       },
     ],
   }),
@@ -141,9 +141,9 @@ function PlanPage() {
 
             {noWorthwhileDetour ? (
               <div className="rounded-2xl border border-border bg-secondary/60 p-4">
-                <p className="text-sm font-medium">We couldn't find a route worth the detour.</p>
+                <p className="text-sm font-medium">No curated discoveries fit this preview.</p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  The fastest route may actually be your best option this time.
+                  Try the direct route or adjust your interests and available extra time.
                 </p>
               </div>
             ) : (

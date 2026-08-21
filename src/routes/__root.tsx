@@ -85,7 +85,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         name: "description",
         content:
-          "Scenic walking routes across central Paris: passages, gardens and quiet streets, with the extra minutes always shown up front.",
+          "Scenic walking previews across central Paris, built around curated passages, gardens and discoveries.",
       },
       { name: "author", content: "Scenic Route" },
       { property: "og:title", content: "Scenic Route" },

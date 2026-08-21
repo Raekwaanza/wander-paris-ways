@@ -17,13 +17,13 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Walking directions across central Paris that trade a few extra minutes for passages, gardens, quiet streets and hidden discoveries.",
+          "Walking route previews across central Paris built around curated passages, gardens and hidden discoveries.",
       },
       { property: "og:title", content: "Scenic Route — Take the interesting way there" },
       {
         property: "og:description",
         content:
-          "Add 12 minutes. See a different side of Paris. Scenic walking routes through passages, gardens and hidden streets.",
+          "See a different side of Paris with walking previews through curated passages, gardens and hidden discoveries.",
       },
     ],
   }),

@@ -37,7 +37,7 @@ export const POIS: Poi[] = [
     lat: 48.865,
     lng: 2.3376,
     category: "Garden",
-    kicker: "Parks & Gardens · Quiet Streets",
+    kicker: "Parks & Gardens · Local Paris",
     description:
       "An arcaded garden of clipped limes and fountains, sealed off from the traffic on all four sides.",
     detail:
@@ -387,7 +387,7 @@ export const POIS: Poi[] = [
     lat: 48.8556,
     lng: 2.3542,
     category: "Church",
-    kicker: "Architecture · Quiet Streets",
+    kicker: "Architecture · Historic Paris",
     description:
       "Flamboyant Gothic behind the first classical façade built in Paris.",
     detail:
@@ -462,7 +462,7 @@ export const POIS: Poi[] = [
     lat: 48.8564,
     lng: 2.3416,
     category: "Square",
-    kicker: "Quiet Streets · Historic Paris",
+    kicker: "Local Paris · Historic Paris",
     description:
       "A triangular tree-shaded square where the noise of the city simply stops.",
     detail:
@@ -687,7 +687,7 @@ export const POIS: Poi[] = [
     lat: 48.8531,
     lng: 2.3383,
     category: "Courtyards",
-    kicker: "Hidden Gem · Quiet Streets",
+    kicker: "Hidden Gem · Historic Paris",
     description:
       "Three linked private courtyards with a surviving Renaissance mounting block.",
     detail:
@@ -712,7 +712,7 @@ export const POIS: Poi[] = [
     lat: 48.8558,
     lng: 2.3634,
     category: "Square",
-    kicker: "Cafés · Quiet Streets",
+    kicker: "Cafés · Local Paris",
     description:
       "A small tree-filled square of terraces, hidden one street off the rue Saint-Antoine.",
     detail:
@@ -787,7 +787,7 @@ export const POIS: Poi[] = [
     lat: 48.8541,
     lng: 2.3345,
     category: "Square",
-    kicker: "Romantic · Quiet Streets",
+    kicker: "Romantic · Hidden Gem",
     description:
       "Four paulownia trees and a white globe lamp — reputedly the most romantic square in Paris.",
     detail:
@@ -837,7 +837,7 @@ export const POIS: Poi[] = [
     lat: 48.8541,
     lng: 2.3593,
     category: "Riverside",
-    kicker: "Quiet Streets · Romantic",
+    kicker: "Architecture · Romantic",
     description:
       "The northern quay of Île Saint-Louis, with steps down to the water's edge.",
     detail:
