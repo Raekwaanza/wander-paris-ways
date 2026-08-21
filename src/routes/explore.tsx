@@ -11,6 +11,7 @@ import { usePreferences, useTrip } from "@/lib/scenic/store";
 import type { Place } from "@/lib/scenic/types";
 import {
   currentLocationErrorMessage,
+  getCurrentLocationFix,
   isLiveCurrentLocationId,
   requestCurrentLocation,
   resolveTripPlace,
@@ -128,11 +129,18 @@ function Explore() {
                   </span>
                   <span className="block text-sm font-medium">
                     {fromIsLive
-                      ? "Current location"
+                      ? from.area === "GPS position"
+                        ? "Current location"
+                        : `Current location — ${from.area}`
                       : from.id === CURRENT_LOCATION_ID
                         ? `Current location — ${from.name}`
                         : from.name}
                   </span>
+                  {fromIsLive && getCurrentLocationFix()?.reverseGeocode?.attribution ? (
+                    <span className="block text-[10px] text-muted-foreground">
+                      Location label: MapTiler / OpenStreetMap contributors
+                    </span>
+                  ) : null}
                 </span>
               </button>
               <button

@@ -11,12 +11,17 @@ import { buildRoutes, buildWander, type BuildOptions } from "./routing";
 import { PLACES, placeById, searchPlaces } from "./places";
 import { POIS, poiById } from "./pois";
 import { scenicConfig, type ScenicProviderMode } from "./config";
+import { reverseGeocodeWithMapTiler, type ReverseGeocodeResult } from "./reverse-geocoding.server";
 import type { LatLng, Place, Poi, ScenicRoute } from "./types";
 
 export interface GeocodingService {
   search(query: string): Promise<Place[]>;
   byId(id: string): Place | undefined;
   all(): Place[];
+}
+
+export interface ReverseGeocodingService {
+  reverse(point: LatLng): Promise<ReverseGeocodeResult | null>;
 }
 
 export interface PoiService {
@@ -63,10 +68,15 @@ const mockRouting: RoutingService = {
   },
 };
 
+const mapTilerReverseGeocoding: ReverseGeocodingService = {
+  reverse: (point) => reverseGeocodeWithMapTiler({ data: point }),
+};
+
 interface ScenicServices {
   geocoding: GeocodingService;
   pois: PoiService;
   routing: RoutingService;
+  reverseGeocoding: ReverseGeocodingService;
   provider: {
     configuredMode: ScenicProviderMode;
     activeMode: ScenicProviderMode;
@@ -88,6 +98,7 @@ export function createScenicServices(config = scenicConfig): ScenicServices {
 
   return {
     ...mockProviderSet,
+    reverseGeocoding: mapTilerReverseGeocoding,
     provider: {
       configuredMode: config.providerMode,
       activeMode: "mock",
