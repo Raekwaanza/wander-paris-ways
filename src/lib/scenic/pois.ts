@@ -1,11 +1,12 @@
 import type { Poi } from "./types";
+import { assertValidPoiDataset } from "./poi-validation";
 
 /**
  * Seeded central-Paris POI dataset.
  * MOCK DATA LAYER — see ./services.ts. Swap for Overpass / Wikidata / OpenTripMap
  * without touching the routing engine or UI.
  */
-export const POIS: Poi[] = [
+const CURATED_POIS: Poi[] = [
   {
     id: "palais-royal",
     name: "Palais Royal",
@@ -857,5 +858,9 @@ export const POIS: Poi[] = [
     neighborhood: "Île Saint-Louis",
   },
 ];
+
+assertValidPoiDataset(CURATED_POIS);
+
+export const POIS = CURATED_POIS;
 
 export const poiById = (id: string) => POIS.find((p) => p.id === id);

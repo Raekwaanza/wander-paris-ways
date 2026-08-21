@@ -1,6 +1,9 @@
 import { services } from "./services";
 import type { Place } from "./types";
 import type { ReverseGeocodeResult } from "./reverse-geocoding.server";
+import { isInParisMvpBounds } from "./paris-bounds";
+
+export { isInParisMvpBounds } from "./paris-bounds";
 
 /** Persistable sentinel for a fix whose coordinates deliberately remain in memory only. */
 export const LIVE_CURRENT_LOCATION_ID = "live-current-location";
@@ -44,12 +47,6 @@ export class CurrentLocationError extends Error {
     super(ERROR_MESSAGES[code]);
     this.name = "CurrentLocationError";
   }
-}
-
-// Generous MVP coverage for Paris and its near suburbs; intentionally not an
-// arrondissement-level service-area definition.
-export function isInParisMvpBounds(lat: number, lng: number) {
-  return lat >= 48.75 && lat <= 49.0 && lng >= 2.15 && lng <= 2.55;
 }
 
 let currentFix: CurrentLocationFix | null = null;
