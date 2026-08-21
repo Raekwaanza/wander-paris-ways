@@ -33,6 +33,14 @@ interface RoutingInput {
   to: LatLng;
 }
 
+interface ViaRoutingInput {
+  points: LatLng[];
+}
+
+const VIA_CACHE_VERSION = "wander-via-v1";
+const viaRouteCache = new Map<string, PedestrianRouteResult>();
+const viaInFlight = new Map<string, Promise<PedestrianRouteResult | null>>();
+
 const routeCache = new Map<string, PedestrianRouteResult[]>();
 const inFlight = new Map<string, Promise<PedestrianRouteResult[]>>();
 let warnedMissingKey = false;
@@ -128,6 +136,19 @@ function validPoint(point: unknown): point is LatLng {
   );
 }
 
+function validateViaRoutingInput(input: ViaRoutingInput): ViaRoutingInput {
+  if (
+    !input ||
+    !Array.isArray(input.points) ||
+    input.points.length < 2 ||
+    input.points.length > 4
+  ) {
+    throw new Error("Invalid waypoint count");
+  }
+  if (!input.points.every(validPoint)) throw new Error("Invalid routing coordinates");
+  return input;
+}
+
 function cacheKey({ from, to }: RoutingInput) {
   return `${OPENROUTESERVICE_CACHE_VERSION}:${from.lat.toFixed(6)},${from.lng.toFixed(6)}:${to.lat.toFixed(6)},${to.lng.toFixed(6)}`;
 }
@@ -168,6 +189,63 @@ async function requestRoute(input: RoutingInput, apiKey: string) {
     clearTimeout(timeout);
   }
 }
+
+async function requestViaRoute(input: ViaRoutingInput, apiKey: string) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), OPENROUTESERVICE_TIMEOUT_MS);
+  try {
+    const response = await fetch(OPENROUTESERVICE_ENDPOINT, {
+      method: "POST",
+      headers: { Authorization: apiKey, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        coordinates: input.points.map(({ lng, lat }) => [lng, lat]),
+        preference: "shortest",
+        instructions: false,
+      }),
+      signal: controller.signal,
+    });
+    if (!response.ok) return null;
+    return (
+      normalizeOpenRouteServiceResponse(await response.json(), {
+        from: input.points[0]!,
+        to: input.points[input.points.length - 1]!,
+      })[0] ?? null
+    );
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+/** Fixed 2–4 point routing for Wander. It deliberately requests no alternatives. */
+export const routeViaOpenRouteService = createServerFn({ method: "POST" })
+  .validator(validateViaRoutingInput)
+  .handler(async ({ data }): Promise<PedestrianRouteResponse> => {
+    const apiKey = process.env["OPENROUTESERVICE_API_KEY"]?.trim();
+    if (!apiKey) return { status: "unavailable" };
+    const key = `${VIA_CACHE_VERSION}:${data.points
+      .map(({ lat, lng }) => `${lat.toFixed(6)},${lng.toFixed(6)}`)
+      .join(":")}`;
+    const cached = viaRouteCache.get(key);
+    if (cached) return { status: "success", candidates: [cached] };
+    let request = viaInFlight.get(key);
+    if (!request) {
+      request = requestViaRoute(data, apiKey);
+      viaInFlight.set(key, request);
+    }
+    try {
+      const candidate = await request;
+      if (!candidate) return { status: "unavailable" };
+      if (viaRouteCache.size >= OPENROUTESERVICE_CACHE_LIMIT) {
+        viaRouteCache.delete(viaRouteCache.keys().next().value as string);
+      }
+      viaRouteCache.set(key, candidate);
+      return { status: "success", candidates: [candidate] };
+    } finally {
+      viaInFlight.delete(key);
+    }
+  });
 
 export const routeWithOpenRouteService = createServerFn({ method: "POST" })
   .validator(validateRoutingInput)
