@@ -3,14 +3,22 @@ import { interestLabel } from "@/lib/scenic/interests";
 
 export function WhyThisRoute({ route }: { route: ScenicRoute }) {
   if (route.discoveries.length === 0) {
-    const description =
-      route.routingSource === "openrouteservice"
-        ? route.profile === "scenic"
-          ? route.extraMinutes > 0
+    let description = "This is an estimated direct route while pedestrian routing is unavailable.";
+    if (route.routingSource === "openrouteservice") {
+      if (route.profile === "fastest") {
+        description = "This is the most direct pedestrian route we found.";
+      } else if (route.profile === "scenic") {
+        description =
+          route.extraMinutes > 0
             ? `This walking route adds about ${route.extraMinutes} minutes; no curated discoveries contributed to its selection.`
-            : "This route follows the direct walking path; no curated discoveries contributed to its selection."
-          : "This is the most direct pedestrian route we found."
-        : "This is an estimated direct route while pedestrian routing is unavailable.";
+            : "This route follows the direct walking path; no curated discoveries contributed to its selection.";
+      } else {
+        description =
+          route.extraMinutes > 0
+            ? `This real walking alternative adds about ${route.extraMinutes} minutes but did not surface any curated discoveries in the current dataset.`
+            : "This real walking alternative did not surface any curated discoveries in the current dataset.";
+      }
+    }
     return (
       <div className="text-sm text-muted-foreground">
         <p>{description}</p>

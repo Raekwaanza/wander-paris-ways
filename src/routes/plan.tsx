@@ -22,13 +22,12 @@ export const Route = createFileRoute("/plan")({
       { title: "Compare routes — Scenic Route Paris" },
       {
         name: "description",
-        content:
-          "Fastest, Scenic or Explorer: compare direct routing with estimated discovery previews.",
+        content: "Compare direct and discovery-oriented walking routes through Paris.",
       },
       { property: "og:title", content: "Fastest, Scenic or Explorer" },
       {
         property: "og:description",
-        content: "Compare direct routing with curated walking previews before you set out.",
+        content: "Compare walking options and curated discoveries before you set out.",
       },
     ],
   }),
@@ -97,6 +96,7 @@ function PlanPage() {
   const active = routes.find((r) => r.profile === selected) ?? routes[1]!;
   const navigationReady = isNetworkNavigableRoute(active);
   const noWorthwhileDetour = active.discoveries.length === 0 && selected !== "fastest";
+  const emptyDiscoveryRouteIsReal = noWorthwhileDetour && navigationReady;
 
   return (
     <>
@@ -143,9 +143,15 @@ function PlanPage() {
 
             {noWorthwhileDetour ? (
               <div className="rounded-2xl border border-border bg-secondary/60 p-4">
-                <p className="text-sm font-medium">No curated discoveries fit this preview.</p>
+                <p className="text-sm font-medium">
+                  {emptyDiscoveryRouteIsReal
+                    ? "No curated discoveries were identified along this route."
+                    : "No curated discoveries fit this preview."}
+                </p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Try the direct route or adjust your interests and available extra time.
+                  {emptyDiscoveryRouteIsReal
+                    ? "You can still take the walking route, or adjust your interests and available extra time."
+                    : "Try the direct route or adjust your interests and available extra time."}
                 </p>
               </div>
             ) : (
