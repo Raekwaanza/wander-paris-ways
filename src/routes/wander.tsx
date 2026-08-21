@@ -5,8 +5,10 @@ import { ParisMap } from "@/components/scenic/ParisMap";
 import { SplitShell } from "@/components/scenic/SplitShell";
 import { PlacePicker } from "@/components/scenic/PlacePicker";
 import { InterestChips } from "@/components/scenic/InterestChips";
-import { CURRENT_LOCATION_ID, placeById } from "@/lib/scenic/places";
-import { buildWander } from "@/lib/scenic/routing";
+import { CURRENT_LOCATION_ID } from "@/lib/scenic/places";
+import { services } from "@/lib/scenic/services";
+import { useWanderRoute } from "@/lib/scenic/use-services";
+import { ScenicLoader } from "@/components/scenic/ScenicLoader";
 import { usePreferences, useTrip } from "@/lib/scenic/store";
 import type { Place } from "@/lib/scenic/types";
 import { cn } from "@/lib/utils";
@@ -38,24 +40,37 @@ function WanderPage() {
   const [, setTrip] = useTrip();
   const [minutes, setMinutes] = useState(45);
   const [custom, setCustom] = useState(false);
-  const [to, setTo] = useState<Place>(() => placeById("place-des-vosges")!);
+  const [to, setTo] = useState<Place>(() => services.geocoding.byId("place-des-vosges")!);
   const [picker, setPicker] = useState(false);
-  const from = placeById(CURRENT_LOCATION_ID)!;
+  const from = services.geocoding.byId(CURRENT_LOCATION_ID)!;
 
-  const route = useMemo(
-    () =>
-      buildWander(from, to, minutes, {
-        interests: prefs.interests,
-        detourCap: prefs.detourCap,
-        pace: prefs.pace,
-      }),
-    [from, to, minutes, prefs.interests, prefs.detourCap, prefs.pace],
-  );
+  const { data: route, error } = useWanderRoute(from, to, minutes, {
+    interests: prefs.interests,
+    detourCap: prefs.detourCap,
+    pace: prefs.pace,
+  });
 
-  const arrival = useMemo(() => {
-    const d = new Date(Date.now() + route.minutes * 60000);
-    return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-  }, [route.minutes]);
+  if (!route) {
+    return (
+      <SplitShell
+        map={<ParisMap start={from} end={to} padding={7} />}
+        panel={
+          error ? (
+            <div className="p-6 text-sm text-muted-foreground">
+              We couldn't build that wander right now. Please try again.
+            </div>
+          ) : (
+            <ScenicLoader />
+          )
+        }
+      />
+    );
+  }
+
+  const arrival = new Date(Date.now() + route.minutes * 60000).toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+  });
 
   const start = () => {
     setTrip({
@@ -138,7 +153,9 @@ function WanderPage() {
                   onClick={() => setCustom(true)}
                   className={cn(
                     "min-h-11 rounded-full border px-4 text-sm font-medium transition-colors",
-                    custom ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card",
+                    custom
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-card",
                   )}
                 >
                   Custom
@@ -155,7 +172,9 @@ function WanderPage() {
                     onChange={(e) => setMinutes(Number(e.target.value))}
                     className="w-full accent-[var(--primary)]"
                   />
-                  <p className="mt-1 text-sm text-muted-foreground tabular-nums">{minutes} minutes</p>
+                  <p className="mt-1 text-sm text-muted-foreground tabular-nums">
+                    {minutes} minutes
+                  </p>
                 </div>
               )}
             </div>
@@ -206,12 +225,7 @@ function WanderPage() {
           </div>
         }
       />
-      <PlacePicker
-        open={picker}
-        onOpenChange={setPicker}
-        title="Ending at"
-        onPick={setTo}
-      />
+      <PlacePicker open={picker} onOpenChange={setPicker} title="Ending at" onPick={setTo} />
     </>
   );
 }

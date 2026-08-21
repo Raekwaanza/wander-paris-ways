@@ -1,13 +1,15 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft, Flag, Pause, Play } from "lucide-react";
 import { ParisMap } from "@/components/scenic/ParisMap";
 import { SplitShell } from "@/components/scenic/SplitShell";
 import { DiscoveryCard } from "@/components/scenic/DiscoveryCard";
 import { DiscoveryDetail } from "@/components/scenic/DiscoveryDetail";
 import { WhyThisRoute } from "@/components/scenic/WhyThisRoute";
-import { CURRENT_LOCATION_ID, placeById } from "@/lib/scenic/places";
-import { buildRoutes, buildWander } from "@/lib/scenic/routing";
+import { CURRENT_LOCATION_ID } from "@/lib/scenic/places";
+import { services } from "@/lib/scenic/services";
+import { useTripRoute } from "@/lib/scenic/use-services";
+import { ScenicLoader } from "@/components/scenic/ScenicLoader";
 import { pointAlong } from "@/lib/scenic/geo";
 import { usePreferences, useTrip } from "@/lib/scenic/store";
 import type { Poi, RouteProfile } from "@/lib/scenic/types";
@@ -43,23 +45,25 @@ function NavigatePage() {
   const [detail, setDetail] = useState<Poi | null>(null);
   const [skipped, setSkipped] = useState<string[]>([]);
 
-  const from = placeById(trip?.fromId ?? CURRENT_LOCATION_ID) ?? placeById(CURRENT_LOCATION_ID)!;
-  const to = placeById(trip?.toId ?? "place-des-vosges") ?? placeById("place-des-vosges")!;
+  const from =
+    services.geocoding.byId(trip?.fromId ?? CURRENT_LOCATION_ID) ??
+    services.geocoding.byId(CURRENT_LOCATION_ID)!;
+  const to =
+    services.geocoding.byId(trip?.toId ?? "place-des-vosges") ??
+    services.geocoding.byId("place-des-vosges")!;
 
-  const route = useMemo(() => {
-    const opts = {
+  const { data: route, error } = useTripRoute(
+    from,
+    to,
+    {
       interests: trip?.interests ?? prefs.interests,
       detourCap: trip?.detourCap ?? prefs.detourCap,
       pace: prefs.pace,
-    };
-    if (trip?.mode === "wander") {
-      return buildWander(from, to, trip.wanderMinutes ?? 45, opts);
-    }
-    return (
-      buildRoutes(from, to, opts).find((r) => r.profile === profile) ??
-      buildRoutes(from, to, opts)[1]!
-    );
-  }, [from, to, trip, prefs.interests, prefs.detourCap, prefs.pace, profile]);
+    },
+    trip?.mode ?? "route",
+    profile,
+    trip?.wanderMinutes,
+  );
 
   useEffect(() => {
     if (!running) return;
@@ -69,23 +73,38 @@ function NavigatePage() {
     return () => clearInterval(t);
   }, [running]);
 
+  useEffect(() => {
+    if (progress >= 1) navigate({ to: "/complete", search: { profile } });
+  }, [progress, navigate, profile]);
+
+  if (!route) {
+    return (
+      <SplitShell
+        showNav={false}
+        map={<ParisMap start={from} end={to} padding={6} />}
+        panel={
+          error ? (
+            <div className="p-6 text-sm text-muted-foreground">
+              We couldn't load this route right now. Please go back and try again.
+            </div>
+          ) : (
+            <ScenicLoader />
+          )
+        }
+      />
+    );
+  }
+
   const user = pointAlong(route.path, progress);
   const remainingMin = Math.max(0, Math.round(route.minutes * (1 - progress)));
   const remainingKm = Math.round(route.km * (1 - progress) * 10) / 10;
 
   const visible = route.discoveries.filter((d) => !skipped.includes(d.id));
-  const upcomingIndex = Math.min(
-    visible.length - 1,
-    Math.floor(progress * (visible.length + 0.4)),
-  );
+  const upcomingIndex = Math.min(visible.length - 1, Math.floor(progress * (visible.length + 0.4)));
   const upcoming = visible[Math.max(0, upcomingIndex)] ?? null;
   const minutesAway = upcoming
     ? Math.max(0, Math.round(route.minutes * (1 - progress) * 0.24))
     : undefined;
-
-  useEffect(() => {
-    if (progress >= 1) navigate({ to: "/complete", search: { profile } });
-  }, [progress, navigate, profile]);
 
   return (
     <>

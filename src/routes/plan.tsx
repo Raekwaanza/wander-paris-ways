@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { ParisMap } from "@/components/scenic/ParisMap";
 import { SplitShell } from "@/components/scenic/SplitShell";
@@ -7,8 +7,9 @@ import { RouteCard } from "@/components/scenic/RouteCard";
 import { WhyThisRoute } from "@/components/scenic/WhyThisRoute";
 import { DiscoveryDetail } from "@/components/scenic/DiscoveryDetail";
 import { ScenicLoader } from "@/components/scenic/ScenicLoader";
-import { CURRENT_LOCATION_ID, placeById } from "@/lib/scenic/places";
-import { buildRoutes } from "@/lib/scenic/routing";
+import { CURRENT_LOCATION_ID } from "@/lib/scenic/places";
+import { services } from "@/lib/scenic/services";
+import { useRoutes } from "@/lib/scenic/use-services";
 import { usePreferences, useTrip } from "@/lib/scenic/store";
 import type { Poi, RouteProfile } from "@/lib/scenic/types";
 
@@ -36,27 +37,44 @@ function PlanPage() {
   const [trip] = useTrip();
   const [prefs] = usePreferences();
   const [selected, setSelected] = useState<RouteProfile>("scenic");
-  const [loading, setLoading] = useState(true);
+  const [showLoader, setShowLoader] = useState(true);
   const [detail, setDetail] = useState<Poi | null>(null);
 
-  const from = placeById(trip?.fromId ?? CURRENT_LOCATION_ID) ?? placeById(CURRENT_LOCATION_ID)!;
-  const to = placeById(trip?.toId ?? "place-des-vosges") ?? placeById("place-des-vosges")!;
+  const from =
+    services.geocoding.byId(trip?.fromId ?? CURRENT_LOCATION_ID) ??
+    services.geocoding.byId(CURRENT_LOCATION_ID)!;
+  const to =
+    services.geocoding.byId(trip?.toId ?? "place-des-vosges") ??
+    services.geocoding.byId("place-des-vosges")!;
 
-  const routes = useMemo(
-    () =>
-      buildRoutes(from, to, {
-        interests: trip?.interests ?? prefs.interests,
-        detourCap: trip?.detourCap ?? prefs.detourCap,
-        pace: prefs.pace,
-      }),
-    [from, to, trip, prefs.interests, prefs.detourCap, prefs.pace],
-  );
+  const { data: routes, error } = useRoutes(from, to, {
+    interests: trip?.interests ?? prefs.interests,
+    detourCap: trip?.detourCap ?? prefs.detourCap,
+    pace: prefs.pace,
+  });
 
   useEffect(() => {
-    setLoading(true);
-    const t = setTimeout(() => setLoading(false), 1500);
-    return () => clearTimeout(t);
+    setShowLoader(true);
+    const timer = setTimeout(() => setShowLoader(false), 1500);
+    return () => clearTimeout(timer);
   }, [from.id, to.id]);
+
+  if (!routes || showLoader) {
+    return (
+      <SplitShell
+        map={<ParisMap start={from} end={to} padding={7} />}
+        panel={
+          error ? (
+            <div className="p-6 text-sm text-muted-foreground">
+              We couldn't build your routes right now. Please go back and try again.
+            </div>
+          ) : (
+            <ScenicLoader />
+          )
+        }
+      />
+    );
+  }
 
   const active = routes.find((r) => r.profile === selected) ?? routes[1]!;
   const noWorthwhileDetour = active.discoveries.length === 0 && selected !== "fastest";
@@ -84,79 +102,73 @@ function PlanPage() {
           </Link>
         }
         panel={
-          loading ? (
-            <ScenicLoader />
-          ) : (
-            <div className="space-y-4 px-5 pt-4 pb-6">
-              <div>
-                <p className="text-eyebrow text-muted-foreground">Walking</p>
-                <h1 className="text-display text-xl">
-                  {from.name} → {to.name}
-                </h1>
-              </div>
-
-              <div className="space-y-2.5">
-                {routes.map((r) => (
-                  <RouteCard
-                    key={r.profile}
-                    route={r}
-                    selected={r.profile === selected}
-                    recommended={r.profile === "scenic"}
-                    onSelect={() => setSelected(r.profile)}
-                  />
-                ))}
-              </div>
-
-              {noWorthwhileDetour ? (
-                <div className="rounded-2xl border border-border bg-secondary/60 p-4">
-                  <p className="text-sm font-medium">
-                    We couldn't find a route worth the detour.
-                  </p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    The fastest route may actually be your best option this time.
-                  </p>
-                </div>
-              ) : (
-                <WhyThisRoute route={active} />
-              )}
-
-              {active.discoveries.length > 0 && (
-                <div>
-                  <h2 className="text-eyebrow text-muted-foreground">You'll pass</h2>
-                  <ul className="mt-2 space-y-1.5">
-                    {active.discoveries.map((d, i) => (
-                      <li key={d.id}>
-                        <button
-                          type="button"
-                          onClick={() => setDetail(d)}
-                          className="flex w-full items-center gap-3 rounded-xl border border-border bg-card px-3 py-2.5 text-left hover:bg-secondary"
-                        >
-                          <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-semibold tabular-nums">
-                            {i + 1}
-                          </span>
-                          <span className="min-w-0">
-                            <span className="block truncate text-sm font-medium">{d.name}</span>
-                            <span className="block truncate text-xs text-muted-foreground">
-                              {d.kicker}
-                            </span>
-                          </span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              <button
-                type="button"
-                onClick={() => navigate({ to: "/navigate", search: { profile: selected } })}
-                className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-base font-medium text-primary-foreground shadow-lift transition-opacity hover:opacity-90"
-              >
-                Take {active.title} Route
-                <ArrowRight className="size-4" strokeWidth={2} />
-              </button>
+          <div className="space-y-4 px-5 pt-4 pb-6">
+            <div>
+              <p className="text-eyebrow text-muted-foreground">Walking</p>
+              <h1 className="text-display text-xl">
+                {from.name} → {to.name}
+              </h1>
             </div>
-          )
+
+            <div className="space-y-2.5">
+              {routes.map((r) => (
+                <RouteCard
+                  key={r.profile}
+                  route={r}
+                  selected={r.profile === selected}
+                  recommended={r.profile === "scenic"}
+                  onSelect={() => setSelected(r.profile)}
+                />
+              ))}
+            </div>
+
+            {noWorthwhileDetour ? (
+              <div className="rounded-2xl border border-border bg-secondary/60 p-4">
+                <p className="text-sm font-medium">We couldn't find a route worth the detour.</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  The fastest route may actually be your best option this time.
+                </p>
+              </div>
+            ) : (
+              <WhyThisRoute route={active} />
+            )}
+
+            {active.discoveries.length > 0 && (
+              <div>
+                <h2 className="text-eyebrow text-muted-foreground">You'll pass</h2>
+                <ul className="mt-2 space-y-1.5">
+                  {active.discoveries.map((d, i) => (
+                    <li key={d.id}>
+                      <button
+                        type="button"
+                        onClick={() => setDetail(d)}
+                        className="flex w-full items-center gap-3 rounded-xl border border-border bg-card px-3 py-2.5 text-left hover:bg-secondary"
+                      >
+                        <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-semibold tabular-nums">
+                          {i + 1}
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block truncate text-sm font-medium">{d.name}</span>
+                          <span className="block truncate text-xs text-muted-foreground">
+                            {d.kicker}
+                          </span>
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={() => navigate({ to: "/navigate", search: { profile: selected } })}
+              className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-base font-medium text-primary-foreground shadow-lift transition-opacity hover:opacity-90"
+            >
+              Take {active.title} Route
+              <ArrowRight className="size-4" strokeWidth={2} />
+            </button>
+          </div>
         }
       />
       <DiscoveryDetail poi={detail} onOpenChange={() => setDetail(null)} />

@@ -1,11 +1,13 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Bookmark, Check, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { ParisMap } from "@/components/scenic/ParisMap";
 import { SplitShell } from "@/components/scenic/SplitShell";
-import { CURRENT_LOCATION_ID, placeById } from "@/lib/scenic/places";
-import { buildRoutes, buildWander } from "@/lib/scenic/routing";
+import { CURRENT_LOCATION_ID } from "@/lib/scenic/places";
+import { services } from "@/lib/scenic/services";
+import { useTripRoute } from "@/lib/scenic/use-services";
+import { ScenicLoader } from "@/components/scenic/ScenicLoader";
 import { usePreferences, useSavedRoutes, useTrip } from "@/lib/scenic/store";
 import { interestLabel } from "@/lib/scenic/interests";
 import type { RouteProfile } from "@/lib/scenic/types";
@@ -50,21 +52,42 @@ function CompletePage() {
   const [likes, setLikes] = useState<string[]>([]);
   const [saved, setSaved] = useState(false);
 
-  const from = placeById(trip?.fromId ?? CURRENT_LOCATION_ID) ?? placeById(CURRENT_LOCATION_ID)!;
-  const to = placeById(trip?.toId ?? "place-des-vosges") ?? placeById("place-des-vosges")!;
+  const from =
+    services.geocoding.byId(trip?.fromId ?? CURRENT_LOCATION_ID) ??
+    services.geocoding.byId(CURRENT_LOCATION_ID)!;
+  const to =
+    services.geocoding.byId(trip?.toId ?? "place-des-vosges") ??
+    services.geocoding.byId("place-des-vosges")!;
 
-  const route = useMemo(() => {
-    const opts = {
+  const { data: route, error } = useTripRoute(
+    from,
+    to,
+    {
       interests: trip?.interests ?? prefs.interests,
       detourCap: trip?.detourCap ?? prefs.detourCap,
       pace: prefs.pace,
-    };
-    if (trip?.mode === "wander") return buildWander(from, to, trip.wanderMinutes ?? 45, opts);
+    },
+    trip?.mode ?? "route",
+    profile,
+    trip?.wanderMinutes,
+  );
+
+  if (!route) {
     return (
-      buildRoutes(from, to, opts).find((r) => r.profile === profile) ??
-      buildRoutes(from, to, opts)[1]!
+      <SplitShell
+        map={<ParisMap start={from} end={to} padding={7} />}
+        panel={
+          error ? (
+            <div className="p-6 text-sm text-muted-foreground">
+              We couldn't load your completed route right now. Please try again.
+            </div>
+          ) : (
+            <ScenicLoader />
+          )
+        }
+      />
     );
-  }, [from, to, trip, prefs.interests, prefs.detourCap, prefs.pace, profile]);
+  }
 
   const neighborhoods = new Set(route.discoveries.map((d) => d.neighborhood)).size;
 
@@ -150,9 +173,7 @@ function CompletePage() {
                     <button
                       key={l}
                       type="button"
-                      onClick={() =>
-                        setLikes((s) => (on ? s.filter((x) => x !== l) : [...s, l]))
-                      }
+                      onClick={() => setLikes((s) => (on ? s.filter((x) => x !== l) : [...s, l]))}
                       className={cn(
                         "min-h-10 rounded-full border px-3.5 text-sm transition-colors",
                         on
@@ -178,7 +199,11 @@ function CompletePage() {
               disabled={saved}
               className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-base font-medium text-primary-foreground shadow-lift disabled:opacity-70"
             >
-              {saved ? <Check className="size-4" strokeWidth={2} /> : <Bookmark className="size-4" strokeWidth={2} />}
+              {saved ? (
+                <Check className="size-4" strokeWidth={2} />
+              ) : (
+                <Bookmark className="size-4" strokeWidth={2} />
+              )}
               {saved ? "Route saved" : "Save route"}
             </button>
             <button
