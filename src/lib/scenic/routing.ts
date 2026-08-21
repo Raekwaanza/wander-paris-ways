@@ -14,9 +14,9 @@ import type { InterestId, LatLng, Place, Poi, RouteProfile, ScenicRoute } from "
  * `ScenicRoute` shape is the contract the UI depends on.
  */
 
-const PACE_KMH = 5.1;
+const PACE_KMH = 5.4;
 /** Street network detour vs straight line. */
-const NETWORK_FACTOR = 1.08;
+const NETWORK_FACTOR = 1.02;
 
 export type Pace = "strolling" | "steady" | "brisk";
 const PACE_MULTIPLIER: Record<Pace, number> = {
@@ -252,7 +252,7 @@ export function buildRoutes(from: Place | LatLng, to: Place | LatLng, opts: Buil
   const cap = opts.detourCap;
   const scenicExtraMin = Math.min(cap, Math.max(7, Math.round(cap * 0.5)));
   const scenicKmBudget = ((scenicExtraMin / 60) * PACE_KMH) / 1.16;
-  const explorerKmBudget = ((cap / 60) * PACE_KMH * 1.35) / 1.16;
+  const explorerKmBudget = ((cap / 60) * PACE_KMH * 1.05) / 1.16;
 
   const scenicStops = selectStops(a, b, opts.interests, Math.max(0.3, scenicKmBudget), 4);
   const explorerStops = selectStops(
@@ -260,7 +260,7 @@ export function buildRoutes(from: Place | LatLng, to: Place | LatLng, opts: Buil
     b,
     opts.interests,
     Math.max(0.6, explorerKmBudget),
-    Math.max(5, Math.round(direct * 3) + 4),
+    Math.min(7, Math.max(4, Math.round(direct * 2) + 3)),
   );
 
   const scenic = makeRoute("scenic", a, b, scenicStops, opts, fastestMinutes);
