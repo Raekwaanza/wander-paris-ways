@@ -10,6 +10,7 @@ const ROUTE_INACTIVE_LAYER = "scenic-routes-inactive";
 const ROUTE_ACTIVE_HALO_LAYER = "scenic-route-active-halo";
 const ROUTE_ACTIVE_LAYER = "scenic-route-active";
 const PARIS_CENTER: [number, number] = [2.3522, 48.8566];
+const MAP_STARTUP_TIMEOUT_MS = 12_000;
 
 function coordinates(point: LatLng): [number, number] {
   return [point.lng, point.lat];
@@ -59,86 +60,147 @@ export function ParisMap(props: ParisMapProps) {
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-    let disposed = false;
+    const lifecycle = { disposed: false, failed: false, ready: false };
     let resizeObserver: ResizeObserver | undefined;
+    let map: MapLibreMap | null = null;
+    let onLoad: (() => void) | undefined;
+    let onError: ((event: { error?: Error }) => void) | undefined;
+    let startupTimeout: ReturnType<typeof setTimeout> | undefined;
+    let startupErrorLogged = false;
+
+    const clearStartupTimeout = () => {
+      if (startupTimeout !== undefined) clearTimeout(startupTimeout);
+      startupTimeout = undefined;
+    };
+
+    const safely = (cleanup: () => void) => {
+      try {
+        cleanup();
+      } catch (error) {
+        if (import.meta.env.DEV) console.warn("[Scenic Route] Map cleanup failed.", error);
+      }
+    };
+
+    const disposeMapResources = () => {
+      clearStartupTimeout();
+      resizeObserver?.disconnect();
+      resizeObserver = undefined;
+      markersRef.current.forEach((marker) => safely(() => marker.remove()));
+      markersRef.current = [];
+      if (map) {
+        const currentMap = map;
+        const loadListener = onLoad;
+        const errorListener = onError;
+        if (loadListener) safely(() => currentMap.off("load", loadListener));
+        if (errorListener) safely(() => currentMap.off("error", errorListener));
+        safely(() => currentMap.remove());
+      }
+      if (mapRef.current === map) mapRef.current = null;
+      map = null;
+    };
+
+    const fallbackToLegacy = (reason: string, error?: unknown) => {
+      if (lifecycle.disposed || lifecycle.failed) return;
+      lifecycle.failed = true;
+      if (import.meta.env.DEV) {
+        console.error(`[Scenic Route] Falling back to legacy map: ${reason}`, error ?? "");
+      }
+      disposeMapResources();
+      setMapReady(false);
+      setMapFailed(true);
+    };
+
+    startupTimeout = setTimeout(
+      () => fallbackToLegacy("MapLibre did not become ready before the startup timeout."),
+      MAP_STARTUP_TIMEOUT_MS,
+    );
 
     void import("maplibre-gl")
       .then(({ default: maplibregl }) => {
-        if (disposed) return;
-        const map = new maplibregl.Map({
-          container,
-          style: scenicConfig.mapStyleUrl,
-          center: PARIS_CENTER,
-          zoom: 12.4,
-          attributionControl: true,
-          interactive: initialInteractiveRef.current,
-        });
+        if (lifecycle.disposed || lifecycle.failed) return;
+        try {
+          map = new maplibregl.Map({
+            container,
+            style: scenicConfig.mapStyleUrl,
+            center: PARIS_CENTER,
+            zoom: 12.4,
+            attributionControl: true,
+            interactive: initialInteractiveRef.current,
+          });
+        } catch (error) {
+          fallbackToLegacy("MapLibre could not create a map (WebGL may be unavailable).", error);
+          return;
+        }
         mapRef.current = map;
         if (initialInteractiveRef.current) {
           map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
         }
-        const onLoad = () => {
-          if (disposed) return;
-          const styles = getComputedStyle(container);
-          const primary = styles.getPropertyValue("--map-route-primary").trim();
-          const muted = styles.getPropertyValue("--map-route-muted").trim();
-          map.addSource(ROUTE_SOURCE, { type: "geojson", data: initialRouteDataRef.current });
-          map.addLayer({
-            id: ROUTE_INACTIVE_LAYER,
-            type: "line",
-            source: ROUTE_SOURCE,
-            filter: ["==", ["get", "active"], false],
-            paint: {
-              "line-color": muted,
-              "line-width": 3,
-              "line-opacity": 0.65,
-              "line-dasharray": [2, 2],
-            },
-            layout: { "line-cap": "round", "line-join": "round" },
-          });
-          map.addLayer({
-            id: ROUTE_ACTIVE_HALO_LAYER,
-            type: "line",
-            source: ROUTE_SOURCE,
-            filter: ["==", ["get", "active"], true],
-            paint: { "line-color": primary, "line-width": 9, "line-opacity": 0.18 },
-            layout: { "line-cap": "round", "line-join": "round" },
-          });
-          map.addLayer({
-            id: ROUTE_ACTIVE_LAYER,
-            type: "line",
-            source: ROUTE_SOURCE,
-            filter: ["==", ["get", "active"], true],
-            paint: { "line-color": primary, "line-width": 5 },
-            layout: { "line-cap": "round", "line-join": "round" },
-          });
+        onLoad = () => {
+          if (lifecycle.disposed || lifecycle.failed || mapRef.current !== map || !map) return;
+          try {
+            const styles = getComputedStyle(container);
+            const primary = styles.getPropertyValue("--map-route-primary").trim();
+            const muted = styles.getPropertyValue("--map-route-muted").trim();
+            map.addSource(ROUTE_SOURCE, { type: "geojson", data: initialRouteDataRef.current });
+            map.addLayer({
+              id: ROUTE_INACTIVE_LAYER,
+              type: "line",
+              source: ROUTE_SOURCE,
+              filter: ["==", ["get", "active"], false],
+              paint: {
+                "line-color": muted,
+                "line-width": 3,
+                "line-opacity": 0.65,
+                "line-dasharray": [2, 2],
+              },
+              layout: { "line-cap": "round", "line-join": "round" },
+            });
+            map.addLayer({
+              id: ROUTE_ACTIVE_HALO_LAYER,
+              type: "line",
+              source: ROUTE_SOURCE,
+              filter: ["==", ["get", "active"], true],
+              paint: { "line-color": primary, "line-width": 9, "line-opacity": 0.18 },
+              layout: { "line-cap": "round", "line-join": "round" },
+            });
+            map.addLayer({
+              id: ROUTE_ACTIVE_LAYER,
+              type: "line",
+              source: ROUTE_SOURCE,
+              filter: ["==", ["get", "active"], true],
+              paint: { "line-color": primary, "line-width": 5 },
+              layout: { "line-cap": "round", "line-join": "round" },
+            });
+          } catch (error) {
+            fallbackToLegacy("The initial map style could not be prepared.", error);
+            return;
+          }
+          lifecycle.ready = true;
+          clearStartupTimeout();
           setMapReady(true);
         };
-        const onError = (event: { error?: Error }) => {
-          if (!map.loaded()) {
-            console.error("[Scenic Route] MapLibre failed to initialize.", event.error);
-            map.remove();
-            mapRef.current = null;
-            setMapFailed(true);
+        onError = (event: { error?: Error }) => {
+          // Resource errors can occur during otherwise successful map loads. The watchdog
+          // handles startup failures without tearing down a usable map for one bad tile.
+          if (import.meta.env.DEV && !lifecycle.ready && !startupErrorLogged) {
+            startupErrorLogged = true;
+            console.warn("[Scenic Route] MapLibre startup resource error.", event.error);
           }
         };
         map.once("load", onLoad);
         map.on("error", onError);
-        resizeObserver = new ResizeObserver(() => map.resize());
+        resizeObserver = new ResizeObserver(() => {
+          if (!lifecycle.disposed && !lifecycle.failed && mapRef.current === map) map?.resize();
+        });
         resizeObserver.observe(container);
       })
       .catch((error: unknown) => {
-        console.error("[Scenic Route] MapLibre failed to initialize.", error);
-        if (!disposed) setMapFailed(true);
+        fallbackToLegacy("MapLibre could not be loaded.", error);
       });
 
     return () => {
-      disposed = true;
-      resizeObserver?.disconnect();
-      markersRef.current.forEach((marker) => marker.remove());
-      markersRef.current = [];
-      mapRef.current?.remove();
-      mapRef.current = null;
+      lifecycle.disposed = true;
+      disposeMapResources();
     };
   }, []);
 
@@ -156,7 +218,7 @@ export function ParisMap(props: ParisMapProps) {
     markersRef.current = [];
 
     void import("maplibre-gl").then(({ default: maplibregl }) => {
-      if (cancelled) return;
+      if (cancelled || mapRef.current !== map) return;
       const markers: Marker[] = [];
       const addMarker = (
         point: LatLng,
@@ -185,6 +247,10 @@ export function ParisMap(props: ParisMapProps) {
         });
         addMarker(poi, button);
       });
+      if (cancelled || mapRef.current !== map) {
+        markers.forEach((marker) => marker.remove());
+        return;
+      }
       markersRef.current = markers;
     });
     return () => {
