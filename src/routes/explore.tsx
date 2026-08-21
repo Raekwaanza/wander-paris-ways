@@ -9,6 +9,12 @@ import { CURRENT_LOCATION_ID } from "@/lib/scenic/places";
 import { services } from "@/lib/scenic/services";
 import { usePreferences, useTrip } from "@/lib/scenic/store";
 import type { Place } from "@/lib/scenic/types";
+import {
+  currentLocationErrorMessage,
+  isLiveCurrentLocationId,
+  requestCurrentLocation,
+  resolveTripPlace,
+} from "@/lib/scenic/current-location";
 
 export const Route = createFileRoute("/explore")({
   head: () => ({
@@ -34,11 +40,17 @@ function Explore() {
   const [prefs, setPrefs] = usePreferences();
   const [trip, setTrip] = useTrip();
   const [from, setFrom] = useState<Place>(
-    () => services.geocoding.byId(trip?.fromId ?? CURRENT_LOCATION_ID) ?? services.geocoding.byId(CURRENT_LOCATION_ID)!,
+    () =>
+      resolveTripPlace(trip?.fromId ?? CURRENT_LOCATION_ID) ??
+      services.geocoding.byId(CURRENT_LOCATION_ID)!,
   );
-  const [to, setTo] = useState<Place | null>(() => services.geocoding.byId(trip?.toId ?? "") ?? null);
+  const [to, setTo] = useState<Place | null>(
+    () => services.geocoding.byId(trip?.toId ?? "") ?? null,
+  );
   const [picker, setPicker] = useState<"from" | "to" | null>(null);
   const [showPrivacy, setShowPrivacy] = useState(true);
+  const [locationPending, setLocationPending] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
 
   const preview = useMemo(() => ({ start: from, end: to ?? undefined }), [from, to]);
 
@@ -58,13 +70,31 @@ function Explore() {
     navigate({ to: "/plan" });
   };
 
+  const useCurrentLocation = async () => {
+    if (locationPending) return;
+    setLocationPending(true);
+    setLocationError(null);
+    try {
+      const fix = await requestCurrentLocation();
+      setFrom(fix.place);
+      setShowPrivacy(false);
+    } catch (error) {
+      setLocationError(currentLocationErrorMessage(error));
+    } finally {
+      setLocationPending(false);
+    }
+  };
+
+  const fromIsLive = isLiveCurrentLocationId(from.id);
+
   return (
     <>
       <SplitShell
         map={
           <ParisMap
-            start={preview.start}
+            start={fromIsLive ? undefined : preview.start}
             end={preview.end}
+            user={fromIsLive ? from : undefined}
             discoveries={[]}
             padding={8}
           />
@@ -97,7 +127,11 @@ function Explore() {
                     From
                   </span>
                   <span className="block text-sm font-medium">
-                    {from.id === CURRENT_LOCATION_ID ? `Current location — ${from.name}` : from.name}
+                    {fromIsLive
+                      ? "Current location"
+                      : from.id === CURRENT_LOCATION_ID
+                        ? `Current location — ${from.name}`
+                        : from.name}
                   </span>
                 </span>
               </button>
@@ -131,8 +165,7 @@ function Explore() {
               to="/wander"
               className="flex items-center justify-center gap-2 text-sm font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
             >
-              <Clock3 className="size-4" strokeWidth={1.75} />
-              I have time to explore
+              <Clock3 className="size-4" strokeWidth={1.75} />I have time to explore
             </Link>
 
             <div>
@@ -170,13 +203,12 @@ function Explore() {
                     <div className="mt-3 flex flex-wrap gap-2">
                       <button
                         type="button"
-                        onClick={() => {
-                          setFrom(services.geocoding.byId(CURRENT_LOCATION_ID)!);
-                          setShowPrivacy(false);
-                        }}
-                        className="min-h-10 rounded-full bg-primary px-4 text-sm font-medium text-primary-foreground"
+                        onClick={useCurrentLocation}
+                        disabled={locationPending}
+                        aria-busy={locationPending}
+                        className="min-h-10 rounded-full bg-primary px-4 text-sm font-medium text-primary-foreground disabled:cursor-wait disabled:opacity-70"
                       >
-                        Use my location
+                        {locationPending ? "Finding your location…" : "Use my location"}
                       </button>
                       <button
                         type="button"
@@ -189,6 +221,11 @@ function Explore() {
                         Enter location manually
                       </button>
                     </div>
+                    {locationError && (
+                      <p role="alert" className="mt-2 text-xs leading-relaxed text-destructive">
+                        {locationError}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>

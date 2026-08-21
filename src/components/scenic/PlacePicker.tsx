@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { services } from "@/lib/scenic/services";
 import type { Place } from "@/lib/scenic/types";
 import { LocateFixed, Search } from "lucide-react";
+import { currentLocationErrorMessage, requestCurrentLocation } from "@/lib/scenic/current-location";
 
 interface Props {
   open: boolean;
@@ -10,21 +11,14 @@ interface Props {
   title: string;
   onPick: (place: Place) => void;
   showCurrentLocation?: boolean | undefined;
-  currentLocationId?: string | undefined;
 }
 
-export function PlacePicker({
-  open,
-  onOpenChange,
-  title,
-  onPick,
-  showCurrentLocation,
-  currentLocationId = "opera",
-}: Props) {
+export function PlacePicker({ open, onOpenChange, title, onPick, showCurrentLocation }: Props) {
   const [q, setQ] = useState("");
   const [results, setResults] = useState<Place[]>([]);
   const [searchFailed, setSearchFailed] = useState(false);
-  const current = services.geocoding.byId(currentLocationId);
+  const [locationPending, setLocationPending] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -45,6 +39,20 @@ export function PlacePicker({
     onOpenChange(false);
   };
 
+  const useCurrentLocation = async () => {
+    if (locationPending) return;
+    setLocationPending(true);
+    setLocationError(null);
+    try {
+      const fix = await requestCurrentLocation();
+      pick(fix.place);
+    } catch (error) {
+      setLocationError(currentLocationErrorMessage(error));
+    } finally {
+      setLocationPending(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md gap-0 overflow-hidden rounded-3xl p-0">
@@ -62,20 +70,31 @@ export function PlacePicker({
           </div>
         </DialogHeader>
         <div className="max-h-[52vh] overflow-y-auto p-2">
-          {showCurrentLocation && current && (
+          {showCurrentLocation && (
             <button
               type="button"
-              onClick={() => pick(current)}
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left hover:bg-secondary"
+              onClick={useCurrentLocation}
+              disabled={locationPending}
+              aria-busy={locationPending}
+              className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left hover:bg-secondary disabled:cursor-wait disabled:opacity-70"
             >
               <span className="flex size-9 items-center justify-center rounded-full bg-accent text-accent-foreground">
                 <LocateFixed className="size-4" strokeWidth={1.75} />
               </span>
               <span>
-                <span className="block text-sm font-medium">Current location</span>
-                <span className="block text-xs text-muted-foreground">Near {current.name}</span>
+                <span className="block text-sm font-medium">
+                  {locationPending ? "Finding your location…" : "Current location"}
+                </span>
+                <span className="block text-xs text-muted-foreground">
+                  Use your device location
+                </span>
               </span>
             </button>
+          )}
+          {showCurrentLocation && locationError && (
+            <p role="alert" className="px-3 pb-2 text-sm text-destructive">
+              {locationError}
+            </p>
           )}
           {results.map((p) => (
             <button

@@ -12,6 +12,8 @@ import { services } from "@/lib/scenic/services";
 import { useRoutes } from "@/lib/scenic/use-services";
 import { usePreferences, useTrip } from "@/lib/scenic/store";
 import type { Poi, RouteProfile } from "@/lib/scenic/types";
+import { LocationRecovery } from "@/components/scenic/LocationRecovery";
+import { isLiveCurrentLocationId, resolveTripPlace } from "@/lib/scenic/current-location";
 
 export const Route = createFileRoute("/plan")({
   head: () => ({
@@ -40,9 +42,10 @@ function PlanPage() {
   const [showLoader, setShowLoader] = useState(true);
   const [detail, setDetail] = useState<Poi | null>(null);
 
-  const from =
-    services.geocoding.byId(trip?.fromId ?? CURRENT_LOCATION_ID) ??
-    services.geocoding.byId(CURRENT_LOCATION_ID)!;
+  const fromId = trip?.fromId ?? CURRENT_LOCATION_ID;
+  const resolvedFrom = resolveTripPlace(fromId);
+  const missingLiveLocation = isLiveCurrentLocationId(fromId) && !resolvedFrom;
+  const from = resolvedFrom ?? services.geocoding.byId(CURRENT_LOCATION_ID)!;
   const to =
     services.geocoding.byId(trip?.toId ?? "place-des-vosges") ??
     services.geocoding.byId("place-des-vosges")!;
@@ -58,6 +61,8 @@ function PlanPage() {
     const timer = setTimeout(() => setShowLoader(false), 1500);
     return () => clearTimeout(timer);
   }, [from.id, to.id]);
+
+  if (missingLiveLocation) return <LocationRecovery />;
 
   if (!routes || showLoader) {
     return (

@@ -12,6 +12,7 @@ import { ScenicLoader } from "@/components/scenic/ScenicLoader";
 import { usePreferences, useTrip } from "@/lib/scenic/store";
 import type { Place } from "@/lib/scenic/types";
 import { cn } from "@/lib/utils";
+import { getCurrentLocationFix } from "@/lib/scenic/current-location";
 
 export const Route = createFileRoute("/wander")({
   head: () => ({
@@ -42,7 +43,7 @@ function WanderPage() {
   const [custom, setCustom] = useState(false);
   const [to, setTo] = useState<Place>(() => services.geocoding.byId("place-des-vosges")!);
   const [picker, setPicker] = useState(false);
-  const from = services.geocoding.byId(CURRENT_LOCATION_ID)!;
+  const from = getCurrentLocationFix()?.place ?? services.geocoding.byId(CURRENT_LOCATION_ID)!;
 
   const { data: route, error } = useWanderRoute(from, to, minutes, {
     interests: prefs.interests,
