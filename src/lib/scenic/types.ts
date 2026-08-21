@@ -1,3 +1,5 @@
+import type { PoiCategory } from "./poi-categories";
+
 export type InterestId =
   | "architecture"
   | "historic"
@@ -24,6 +26,21 @@ export interface LatLng {
   lng: number;
 }
 
+/**
+ * Internal curated ranking inputs on a 0–10 editorial scale. These are not
+ * objective metrics, reviews, probabilities, or user-facing ratings.
+ * `popularity` remains an editorial input to Preview routing.
+ */
+export interface PoiEditorialScores {
+  scenic: number;
+  hidden: number;
+  historic: number;
+  architecture: number;
+  nature: number;
+  food: number;
+  popularity: number;
+}
+
 /** A real, unclassified pedestrian path returned by a routing provider. */
 export interface WalkingRouteCandidate {
   id: string;
@@ -42,20 +59,13 @@ export interface WalkingRouteCandidate {
 export interface Poi extends LatLng {
   id: string;
   name: string;
-  category: string;
+  category: PoiCategory;
   kicker: string;
   description: string;
   detail: string;
-  scores: {
-    scenic: number;
-    hidden: number;
-    historic: number;
-    architecture: number;
-    nature: number;
-    food: number;
-    popularity: number;
-  };
+  scores: PoiEditorialScores;
   interests: InterestId[];
+  /** Editorial guidance for an approximate stop; never walking time or ETA. */
   visitMinutes: number;
   arrondissement: number;
   neighborhood: string;

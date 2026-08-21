@@ -15,5 +15,6 @@ export const INTERESTS: Interest[] = [
   { id: "iconic", label: "Iconic Paris" },
 ];
 
-export const interestLabel = (id: InterestId) =>
-  INTERESTS.find((i) => i.id === id)?.label ?? id;
+export const INTEREST_IDS: readonly InterestId[] = INTERESTS.map(({ id }) => id);
+
+export const interestLabel = (id: InterestId) => INTERESTS.find((i) => i.id === id)?.label ?? id;
