@@ -14,6 +14,7 @@ dist-ssr
 .vinxi
 .tanstack/**
 .nitro
+mobile-dist
 *.local
 .env
 .env.*
@@ -37,3 +38,22 @@ blob-report/
 *.njsproj
 *.sln
 *.sw?
+
+# Capacitor native build output and machine/user-specific state
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+ios/App/DerivedData/
+ios/App/Pods/
+ios/App/*.xcworkspace/xcuserdata/
+ios/App/*.xcodeproj/xcuserdata/
+*.xcuserstate
+*.xcuserdatad
+
+# Signing credentials and provisioning material must never be committed
+*.keystore
+*.jks
+*.p12
+*.mobileprovision
+*.cer
