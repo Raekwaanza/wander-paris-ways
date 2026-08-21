@@ -1,5 +1,6 @@
 import { services } from "./services";
 import type { Place } from "./types";
+import type { ReverseGeocodeResult } from "./reverse-geocoding.server";
 
 /** Persistable sentinel for a fix whose coordinates deliberately remain in memory only. */
 export const LIVE_CURRENT_LOCATION_ID = "live-current-location";
@@ -14,6 +15,7 @@ export interface CurrentLocationFix {
   place: Place;
   accuracy: number | null;
   timestamp: number;
+  reverseGeocode?: ReverseGeocodeResult;
 }
 
 export type CurrentLocationErrorCode =
@@ -86,7 +88,7 @@ export function requestCurrentLocation(): Promise<CurrentLocationFix> {
 
   pendingRequest = new Promise<CurrentLocationFix>((resolve, reject) => {
     navigator.geolocation.getCurrentPosition(
-      (position) => {
+      async (position) => {
         const { latitude: lat, longitude: lng, accuracy } = position.coords;
         if (!isInParisMvpBounds(lat, lng)) {
           reject(new CurrentLocationError("outside-paris"));
@@ -105,6 +107,16 @@ export function requestCurrentLocation(): Promise<CurrentLocationFix> {
           timestamp: position.timestamp,
         };
         currentFix = fix;
+
+        // The valid GPS fix is stored first. Label enrichment is deliberately
+        // best-effort and never changes its browser-supplied coordinates.
+        const reverseGeocode = await services.reverseGeocoding
+          .reverse({ lat, lng })
+          .catch(() => null);
+        if (reverseGeocode) {
+          fix.place = { ...fix.place, area: reverseGeocode.label };
+          fix.reverseGeocode = reverseGeocode;
+        }
         resolve(fix);
       },
       (error) => reject(normalizeError(error)),
