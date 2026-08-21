@@ -12,6 +12,8 @@ export type InterestId =
   | "local"
   | "iconic";
 
+export type Pace = "strolling" | "steady" | "brisk";
+
 export interface Interest {
   id: InterestId;
   label: string;
@@ -68,6 +70,34 @@ export interface RouteCorridorAnalysis {
   candidate: WalkingRouteCandidate;
   corridorRadiusMeters: number;
   pois: RouteCorridorPoi[];
+}
+
+/** Inputs for ranking already-analyzed real pedestrian route candidates. */
+export interface CandidateScoringOptions {
+  interests: InterestId[];
+  detourCap: number;
+  pace?: Pace;
+}
+
+/** Inspectable, unitless contributions to the internal candidate heuristic. */
+export interface CandidateScoreBreakdown {
+  scenicValue: number;
+  landmarkQuality: number;
+  interestMatch: number;
+  discoverySpread: number;
+  detourPenalty: number;
+}
+
+/** An evaluation of a real route; `analysis.candidate.path` remains unchanged. */
+export interface ScoredRouteCandidate {
+  analysis: RouteCorridorAnalysis;
+  score: number;
+  breakdown: CandidateScoreBreakdown;
+  matchedInterests: InterestId[];
+  extraDurationSeconds: number;
+  extraDistanceMeters: number;
+  extraMinutes: number;
+  withinDetourCap: boolean;
 }
 
 export interface Place extends LatLng {
@@ -139,7 +169,7 @@ export interface SavedRoute {
 export interface Preferences {
   interests: InterestId[];
   detourCap: number;
-  pace: "strolling" | "steady" | "brisk";
+  pace: Pace;
   units: "km" | "mi";
   seenIntro: boolean;
 }
