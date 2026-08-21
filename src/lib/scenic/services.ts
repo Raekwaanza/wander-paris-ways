@@ -21,6 +21,7 @@ import { livePlaceById, registerLivePlaces } from "./live-places";
 import { analyzeRouteCorridor } from "./route-analysis";
 import { scoreCandidateCorridors } from "./route-scoring";
 import { matchedInterestsForPois, routeReasonsForPois } from "./route-discoveries";
+import { selectExplorerCandidate, selectScenicCandidate } from "./route-selection";
 import type {
   CandidateScoringOptions,
   LatLng,
@@ -204,7 +205,11 @@ async function realWalkingCandidates(from: LatLng, to: LatLng): Promise<WalkingR
   }));
 }
 
-function materializeScenicRoute(scored: ScoredRouteCandidate, opts: BuildOptions): ScenicRoute {
+function materializeDiscoveryRoute(
+  scored: ScoredRouteCandidate,
+  profile: "scenic" | "explorer",
+  opts: BuildOptions,
+): ScenicRoute {
   const candidate = scored.analysis.candidate;
   const contributingIds = new Set(scored.contributingPoiIds);
   const discoveries = scored.analysis.pois
@@ -220,10 +225,13 @@ function materializeScenicRoute(scored: ScoredRouteCandidate, opts: BuildOptions
   const discoveryLabel = discoveries.length === 1 ? "discovery" : "discoveries";
 
   return {
-    id: `ors-scenic-${candidate.id}`,
-    profile: "scenic",
-    title: "Scenic",
-    blurb: `A real walking route with ${discoveries.length} curated ${discoveryLabel} nearby.`,
+    id: `ors-${profile}-${candidate.id}`,
+    profile,
+    title: profile === "scenic" ? "Scenic" : "Explorer",
+    blurb:
+      profile === "scenic"
+        ? `A real walking route with ${discoveries.length} curated ${discoveryLabel} nearby.`
+        : `A discovery-focused walking alternative with ${discoveries.length} curated ${discoveryLabel} nearby.`,
     minutes,
     km: Math.round((candidate.distanceMeters / 1_000) * 10) / 10,
     extraMinutes: Math.max(0, Math.round(scored.extraMinutes)),
@@ -274,11 +282,20 @@ const hybridRouting: RoutingService = {
         detourCap: opts.detourCap,
         pace: opts.pace ?? "steady",
       });
-      const selected =
-        scored.find((candidate) => candidate.withinDetourCap) ??
-        scored.find((candidate) => candidate.analysis.candidate.id === provider.id);
-      if (!selected) return [fastest, ...fallbackRoutes];
-      return [fastest, materializeScenicRoute(selected, opts), fallbackRoutes[1]];
+      const selectedScenic = selectScenicCandidate(scored, provider.id);
+      if (!selectedScenic) return [fastest, ...fallbackRoutes];
+      const selectedExplorer = selectExplorerCandidate(
+        scored,
+        provider.id,
+        selectedScenic.analysis.candidate.id,
+      );
+      return [
+        fastest,
+        materializeDiscoveryRoute(selectedScenic, "scenic", opts),
+        selectedExplorer
+          ? materializeDiscoveryRoute(selectedExplorer, "explorer", opts)
+          : fallbackRoutes[1],
+      ];
     } catch {
       return [fastest, ...fallbackRoutes];
     }
