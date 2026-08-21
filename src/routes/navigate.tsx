@@ -13,6 +13,8 @@ import { ScenicLoader } from "@/components/scenic/ScenicLoader";
 import { pointAlong } from "@/lib/scenic/geo";
 import { usePreferences, useTrip } from "@/lib/scenic/store";
 import type { Poi, RouteProfile } from "@/lib/scenic/types";
+import { LocationRecovery } from "@/components/scenic/LocationRecovery";
+import { isLiveCurrentLocationId, resolveTripPlace } from "@/lib/scenic/current-location";
 
 export const Route = createFileRoute("/navigate")({
   validateSearch: (s: Record<string, unknown>) => ({
@@ -45,9 +47,10 @@ function NavigatePage() {
   const [detail, setDetail] = useState<Poi | null>(null);
   const [skipped, setSkipped] = useState<string[]>([]);
 
-  const from =
-    services.geocoding.byId(trip?.fromId ?? CURRENT_LOCATION_ID) ??
-    services.geocoding.byId(CURRENT_LOCATION_ID)!;
+  const fromId = trip?.fromId ?? CURRENT_LOCATION_ID;
+  const resolvedFrom = resolveTripPlace(fromId);
+  const missingLiveLocation = isLiveCurrentLocationId(fromId) && !resolvedFrom;
+  const from = resolvedFrom ?? services.geocoding.byId(CURRENT_LOCATION_ID)!;
   const to =
     services.geocoding.byId(trip?.toId ?? "place-des-vosges") ??
     services.geocoding.byId("place-des-vosges")!;
@@ -76,6 +79,8 @@ function NavigatePage() {
   useEffect(() => {
     if (progress >= 1) navigate({ to: "/complete", search: { profile } });
   }, [progress, navigate, profile]);
+
+  if (missingLiveLocation) return <LocationRecovery />;
 
   if (!route) {
     return (
