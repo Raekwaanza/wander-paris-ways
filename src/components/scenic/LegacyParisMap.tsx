@@ -26,6 +26,10 @@ function ring(points: LatLng[]) {
     .join(" ");
 }
 
+function polylineSvgPath(points: { x: number; y: number }[]): string {
+  return points.map(({ x, y }, index) => `${index === 0 ? "M" : "L"} ${x} ${y}`).join(" ");
+}
+
 export function LegacyParisMap({
   routes = [],
   start,
@@ -179,7 +183,11 @@ export function LegacyParisMap({
 
         {/* routes */}
         {routes.map(({ route, active }) => {
-          const d = smoothSvgPath(route.path.map(project));
+          // Never curve authoritative provider geometry through areas it did not traverse.
+          const d =
+            route.routingSource === "openrouteservice"
+              ? polylineSvgPath(route.path.map(project))
+              : smoothSvgPath(route.path.map(project));
           return (
             <g key={route.id + route.profile}>
               {active ? (
