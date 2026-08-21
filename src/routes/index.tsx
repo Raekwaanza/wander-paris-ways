@@ -6,7 +6,8 @@ import { PlacePicker } from "@/components/scenic/PlacePicker";
 import { CURRENT_LOCATION_ID } from "@/lib/scenic/places";
 import { services } from "@/lib/scenic/services";
 import { useRoutes } from "@/lib/scenic/use-services";
-import { usePreferences, useTrip } from "@/lib/scenic/store";
+import { usePreferences, useRouteFeedback, useTrip } from "@/lib/scenic/store";
+import { deriveLearnedPreferenceSnapshot } from "@/lib/scenic/preference-learning";
 import type { Place } from "@/lib/scenic/types";
 import { tripEndpointFromPlace } from "@/lib/scenic/trip-endpoints";
 
@@ -36,6 +37,7 @@ function Landing() {
   const [destination, setDestination] = useState<Place | null>(null);
   const [prefs, setPrefs] = usePreferences();
   const [, setTrip] = useTrip();
+  const { feedback } = useRouteFeedback();
   const demoFrom = services.geocoding.byId("opera")!;
   const demoTo = services.geocoding.byId("place-des-vosges")!;
   const { data: demoRoutes } = useRoutes(demoFrom, demoTo, {
@@ -52,6 +54,7 @@ function Landing() {
       interests: prefs.interests,
       detourCap: prefs.detourCap,
       mode: "route",
+      learnedPreferences: deriveLearnedPreferenceSnapshot(feedback),
       createdAt: Date.now(),
     });
     navigate({ to: "/plan" });

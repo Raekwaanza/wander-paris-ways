@@ -1,12 +1,13 @@
 import { useCallback, useSyncExternalStore } from "react";
 import { MAX_ROUTE_FEEDBACK_ENTRIES, validateRouteFeedback } from "./route-feedback";
+import { validateLearnedPreferenceSnapshot } from "./preference-learning";
 import type { Poi, Preferences, RouteFeedback, SavedRoute, TripPlan } from "./types";
 import { migrateLegacyTripEndpoint, validateTripEndpoint } from "./trip-endpoints";
 
 const KEY = "scenic-route:v1";
 
 interface State {
-  version: 3;
+  version: 4;
   prefs: Preferences;
   savedRoutes: SavedRoute[];
   savedDiscoveries: string[];
@@ -15,7 +16,7 @@ interface State {
 }
 
 const DEFAULT_STATE: State = {
-  version: 3,
+  version: 4,
   prefs: {
     interests: [],
     detourCap: 20,
@@ -71,7 +72,7 @@ function hydrate() {
               .slice(0, MAX_ROUTE_FEEDBACK_ENTRIES)
           : [],
       };
-      // Rewrite legacy or malformed data in the validated v3 shape while
+      // Rewrite legacy or malformed data in the validated v4 shape while
       // retaining independently stored preferences and saved items.
       persist();
       emit();
@@ -84,7 +85,7 @@ function hydrate() {
 function hydrateTrip(value: unknown): TripPlan | null {
   if (!isRecord(value)) return null;
   const { from: rawFrom, to: rawTo, fromId, toId, ...fields } = value;
-  const { interests, detourCap, mode, wanderMinutes, createdAt } = fields;
+  const { interests, detourCap, mode, wanderMinutes, learnedPreferences, createdAt } = fields;
   const from = validateTripEndpoint(rawFrom) ?? migrateLegacyTripEndpoint(fromId);
   const to = validateTripEndpoint(rawTo) ?? migrateLegacyTripEndpoint(toId);
   if (
@@ -102,6 +103,7 @@ function hydrateTrip(value: unknown): TripPlan | null {
   ) {
     return null;
   }
+  const snapshot = validateLearnedPreferenceSnapshot(learnedPreferences);
   return {
     from,
     to,
@@ -109,6 +111,7 @@ function hydrateTrip(value: unknown): TripPlan | null {
     detourCap,
     mode,
     ...(typeof wanderMinutes === "number" ? { wanderMinutes } : {}),
+    ...(snapshot ? { learnedPreferences: snapshot } : {}),
     createdAt,
   };
 }

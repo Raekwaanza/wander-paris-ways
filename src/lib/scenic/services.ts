@@ -298,6 +298,7 @@ const hybridRouting: RoutingService = {
         interests: opts.interests,
         detourCap: opts.detourCap,
         pace: opts.pace ?? "steady",
+        ...(opts.learnedPreferences ? { learnedPreferences: opts.learnedPreferences } : {}),
       });
       const selectedScenic = selectScenicCandidate(scored, provider.id);
       if (!selectedScenic) return [fastest, ...fallbackRoutes];
@@ -355,7 +356,14 @@ const hybridRouting: RoutingService = {
       });
     if (minutes - directMinutes < WANDER_V1.minimumExtraRoomMinutes) return directOnly();
 
-    const anchors = shortlistWanderAnchors(from, to, mockPois.all(), minutes, opts.interests);
+    const anchors = shortlistWanderAnchors(
+      from,
+      to,
+      mockPois.all(),
+      minutes,
+      opts.interests,
+      opts.learnedPreferences,
+    );
     if (anchors.length === 0) return directOnly();
     let matrix;
     try {
@@ -370,6 +378,7 @@ const hybridRouting: RoutingService = {
       minutes,
       opts.pace ?? "steady",
       opts.interests,
+      opts.learnedPreferences,
     ).slice(0, WANDER_V1.maxViaDirectionsAttempts);
 
     const successful: Array<{ analysis: RouteCorridorAnalysis; waypointPoiIds: string[] }> = [];
@@ -407,9 +416,20 @@ const hybridRouting: RoutingService = {
     }
     const selected = successful.sort(
       (a, b) =>
-        wanderCandidateScore(b.analysis, minutes, opts.pace, opts.interests) -
-          wanderCandidateScore(a.analysis, minutes, opts.pace, opts.interests) ||
-        a.waypointPoiIds.join(":").localeCompare(b.waypointPoiIds.join(":")),
+        wanderCandidateScore(
+          b.analysis,
+          minutes,
+          opts.pace,
+          opts.interests,
+          opts.learnedPreferences,
+        ) -
+          wanderCandidateScore(
+            a.analysis,
+            minutes,
+            opts.pace,
+            opts.interests,
+            opts.learnedPreferences,
+          ) || a.waypointPoiIds.join(":").localeCompare(b.waypointPoiIds.join(":")),
     )[0];
     if (!selected) return directOnly();
     return materializeWanderRoute({

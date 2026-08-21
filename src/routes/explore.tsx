@@ -7,7 +7,8 @@ import { SplitShell } from "@/components/scenic/SplitShell";
 import { InterestChips } from "@/components/scenic/InterestChips";
 import { CURRENT_LOCATION_ID } from "@/lib/scenic/places";
 import { services } from "@/lib/scenic/services";
-import { usePreferences, useTrip } from "@/lib/scenic/store";
+import { usePreferences, useRouteFeedback, useTrip } from "@/lib/scenic/store";
+import { deriveLearnedPreferenceSnapshot } from "@/lib/scenic/preference-learning";
 import type { Place } from "@/lib/scenic/types";
 import {
   currentLocationErrorMessage,
@@ -44,6 +45,7 @@ function Explore() {
   const navigate = useNavigate();
   const [prefs, setPrefs] = usePreferences();
   const [trip, setTrip] = useTrip();
+  const { feedback } = useRouteFeedback();
   const [from, setFrom] = useState<Place>(
     () =>
       (trip ? resolvedPlace(resolveTripEndpoint(trip.from)) : undefined) ??
@@ -70,6 +72,7 @@ function Explore() {
       interests: prefs.interests,
       detourCap: prefs.detourCap,
       mode: "route",
+      learnedPreferences: deriveLearnedPreferenceSnapshot(feedback),
       createdAt: Date.now(),
     });
     navigate({ to: "/plan" });

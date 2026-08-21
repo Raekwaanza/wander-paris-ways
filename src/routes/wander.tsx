@@ -9,7 +9,8 @@ import { CURRENT_LOCATION_ID } from "@/lib/scenic/places";
 import { services } from "@/lib/scenic/services";
 import { useWanderRoute } from "@/lib/scenic/use-services";
 import { ScenicLoader } from "@/components/scenic/ScenicLoader";
-import { usePreferences, useTrip } from "@/lib/scenic/store";
+import { usePreferences, useRouteFeedback, useTrip } from "@/lib/scenic/store";
+import { deriveLearnedPreferenceSnapshot } from "@/lib/scenic/preference-learning";
 import type { Place } from "@/lib/scenic/types";
 import { cn } from "@/lib/utils";
 import { getCurrentLocationFix } from "@/lib/scenic/current-location";
@@ -41,6 +42,8 @@ function WanderPage() {
   const navigate = useNavigate();
   const [prefs, setPrefs] = usePreferences();
   const [, setTrip] = useTrip();
+  const { feedback } = useRouteFeedback();
+  const learnedPreferences = useMemo(() => deriveLearnedPreferenceSnapshot(feedback), [feedback]);
   const [minutes, setMinutes] = useState(45);
   const [custom, setCustom] = useState(false);
   const [to, setTo] = useState<Place>(() => services.geocoding.byId("place-des-vosges")!);
@@ -51,6 +54,7 @@ function WanderPage() {
     interests: prefs.interests,
     detourCap: prefs.detourCap,
     pace: prefs.pace,
+    learnedPreferences,
   });
 
   if (!route) {
@@ -87,6 +91,7 @@ function WanderPage() {
       detourCap: prefs.detourCap,
       mode: "wander",
       wanderMinutes: minutes,
+      learnedPreferences,
       createdAt: Date.now(),
     });
     navigate({ to: "/navigate", search: { profile: "explorer" } });

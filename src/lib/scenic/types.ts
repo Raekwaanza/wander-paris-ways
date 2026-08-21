@@ -91,6 +91,7 @@ export interface CandidateScoringOptions {
   interests: InterestId[];
   detourCap: number;
   pace?: Pace;
+  learnedPreferences?: LearnedPreferenceSnapshot;
 }
 
 /** Inspectable, unitless contributions to the internal candidate heuristic. */
@@ -154,6 +155,13 @@ export interface RouteFeedback {
   updatedAt: number;
 }
 
+/** Frozen, abstract device-local preference context for one trip. */
+export interface LearnedPreferenceSnapshot {
+  version: 1;
+  interestAffinities: Partial<Record<InterestId, number>>;
+  sourceFeedbackCount: number;
+}
+
 export interface RouteReasonLine {
   count: number;
   label: string;
@@ -208,6 +216,7 @@ export interface TripPlan {
   detourCap: number;
   mode: "route" | "wander";
   wanderMinutes?: number;
+  learnedPreferences?: LearnedPreferenceSnapshot;
   createdAt: number;
 }
 
