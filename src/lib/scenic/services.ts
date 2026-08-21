@@ -19,12 +19,15 @@ import { reverseGeocodeWithMapTiler, type ReverseGeocodeResult } from "./reverse
 import { searchParisWithMapTiler, type ForwardGeocodeResult } from "./maptiler-geocoding.server";
 import { livePlaceById, registerLivePlaces } from "./live-places";
 import { analyzeRouteCorridor } from "./route-analysis";
+import { scoreCandidateCorridors } from "./route-scoring";
 import type {
+  CandidateScoringOptions,
   LatLng,
   Place,
   Poi,
   RouteCorridorAnalysis,
   ScenicRoute,
+  ScoredRouteCandidate,
   WalkingRouteCandidate,
 } from "./types";
 
@@ -63,6 +66,10 @@ export interface RouteAnalysisService {
     candidates: WalkingRouteCandidate[],
     radiusMeters?: number,
   ): Promise<RouteCorridorAnalysis[]>;
+  scoreCorridors(
+    analyses: RouteCorridorAnalysis[],
+    options: CandidateScoringOptions,
+  ): Promise<ScoredRouteCandidate[]>;
 }
 
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -119,6 +126,9 @@ const curatedRouteAnalysis: RouteAnalysisService = {
     return candidates.map((candidate) =>
       analyzeRouteCorridor(candidate, mockPois.all(), radiusMeters),
     );
+  },
+  async scoreCorridors(analyses, options) {
+    return scoreCandidateCorridors(analyses, options);
   },
 };
 

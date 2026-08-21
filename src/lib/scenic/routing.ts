@@ -1,6 +1,8 @@
 import { distanceKm, detourKm, lerp, pathLengthKm } from "./geo";
 import { POIS } from "./pois";
-import type { InterestId, LatLng, Place, Poi, RouteProfile, ScenicRoute } from "./types";
+import type { InterestId, LatLng, Pace, Place, Poi, RouteProfile, ScenicRoute } from "./types";
+
+export type { Pace } from "./types";
 
 /**
  * Mock scenic routing engine.
@@ -18,7 +20,6 @@ const PACE_KMH = 5.4;
 /** Street network detour vs straight line. */
 const NETWORK_FACTOR = 1.02;
 
-export type Pace = "strolling" | "steady" | "brisk";
 const PACE_MULTIPLIER: Record<Pace, number> = {
   strolling: 1.16,
   steady: 1,
