@@ -145,7 +145,7 @@ function PlanPage() {
               <div className="rounded-2xl border border-border bg-secondary/60 p-4">
                 <p className="text-sm font-medium">
                   {emptyDiscoveryRouteIsReal
-                    ? "No curated discoveries were identified along this route."
+                    ? "No curated discoveries were identified near this route."
                     : "No curated discoveries fit this preview."}
                 </p>
                 <p className="mt-1 text-sm text-muted-foreground">
@@ -160,7 +160,7 @@ function PlanPage() {
 
             {active.discoveries.length > 0 && (
               <div>
-                <h2 className="text-eyebrow text-muted-foreground">You'll pass</h2>
+                <h2 className="text-eyebrow text-muted-foreground">Near this route</h2>
                 <ul className="mt-2 space-y-1.5">
                   {active.discoveries.map((d, i) => (
                     <li key={d.id}>
@@ -197,7 +197,7 @@ function PlanPage() {
               </button>
               {!navigationReady && (
                 <p className="mt-2 text-center text-sm text-muted-foreground">
-                  This route concept isn't ready for walking directions yet.
+                  This option is currently available only as a preview.
                 </p>
               )}
             </div>

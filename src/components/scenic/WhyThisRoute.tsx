@@ -2,21 +2,24 @@ import type { ScenicRoute } from "@/lib/scenic/types";
 import { interestLabel } from "@/lib/scenic/interests";
 
 export function WhyThisRoute({ route }: { route: ScenicRoute }) {
+  const isReal = route.routingSource === "openrouteservice";
+
   if (route.discoveries.length === 0) {
-    let description = "This is an estimated direct route while pedestrian routing is unavailable.";
-    if (route.routingSource === "openrouteservice") {
+    let description =
+      "This is a concept preview using estimated route geometry and curated discovery data.";
+    if (isReal) {
       if (route.profile === "fastest") {
-        description = "This is the most direct pedestrian route we found.";
+        description = "This is the direct pedestrian route used as the baseline for comparison.";
       } else if (route.profile === "scenic") {
         description =
           route.extraMinutes > 0
-            ? `This walking route adds about ${route.extraMinutes} minutes; no curated discoveries contributed to its selection.`
-            : "This route follows the direct walking path; no curated discoveries contributed to its selection.";
+            ? `This pedestrian-network route adds about ${route.extraMinutes} minutes compared with the direct route, but no curated discoveries are displayed nearby.`
+            : "This pedestrian-network route adds no meaningful extra walking time in the current comparison, but no curated discoveries are displayed nearby.";
       } else {
         description =
           route.extraMinutes > 0
-            ? `This real walking alternative adds about ${route.extraMinutes} minutes but did not surface any curated discoveries in the current dataset.`
-            : "This real walking alternative did not surface any curated discoveries in the current dataset.";
+            ? `This walking alternative adds about ${route.extraMinutes} minutes compared with the direct route, but no curated discoveries are displayed nearby.`
+            : "This walking alternative adds no meaningful extra walking time in the current comparison, but no curated discoveries are displayed nearby.";
       }
     }
     return (
@@ -30,26 +33,36 @@ export function WhyThisRoute({ route }: { route: ScenicRoute }) {
     <div className="rounded-2xl border border-border bg-secondary/60 p-4">
       <p className="text-eyebrow text-muted-foreground">Why this route?</p>
       <p className="mt-2 text-sm">
-        {route.routingSource === "openrouteservice" ? (
-          route.extraMinutes > 0 ? (
-            <>
-              This walking route adds about{" "}
-              <span className="font-semibold">{route.extraMinutes} minutes</span> and has curated
-              discoveries nearby.
-            </>
-          ) : (
-            <>
-              This route follows the direct walking path while still putting curated discoveries
-              nearby.
-            </>
-          )
-        ) : route.extraMinutes > 0 ? (
+        {!isReal ? (
+          <>This is a concept preview using estimated route geometry and curated discovery data.</>
+        ) : route.profile === "fastest" ? (
+          <>This is the direct pedestrian route used as the baseline for comparison.</>
+        ) : route.profile === "scenic" ? (
           <>
-            This preview is estimated to add about{" "}
-            <span className="font-semibold">{route.extraMinutes} minutes</span>.
+            Chosen from real walking alternatives for the {route.discoveries.length} curated
+            {route.discoveries.length === 1 ? " discovery" : " discoveries"} near the route while
+            staying within your extra-time setting.{" "}
+            {route.extraMinutes > 0 ? "It adds about " : "It adds "}
+            {route.extraMinutes > 0 && (
+              <span className="font-semibold">{route.extraMinutes} minutes</span>
+            )}
+            {route.extraMinutes > 0
+              ? " compared with the direct route."
+              : "no meaningful extra walking time in the current comparison."}
           </>
         ) : (
-          <>This preview is built around:</>
+          <>
+            A discovery-focused walking alternative selected from the available pedestrian routes,
+            with {route.discoveries.length} curated
+            {route.discoveries.length === 1 ? " discovery" : " discoveries"} near the walk.{" "}
+            {route.extraMinutes > 0 ? "It adds about " : "It adds "}
+            {route.extraMinutes > 0 && (
+              <span className="font-semibold">{route.extraMinutes} minutes</span>
+            )}
+            {route.extraMinutes > 0
+              ? " compared with the direct route and fits your extra-time setting."
+              : "no meaningful extra walking time in the current comparison and fits your extra-time setting."}
+          </>
         )}
       </p>
       <ul className="mt-2 space-y-1.5">
@@ -70,7 +83,7 @@ export function WhyThisRoute({ route }: { route: ScenicRoute }) {
           </>
         ) : (
           <>
-            {route.routingSource === "openrouteservice"
+            {isReal
               ? "This route uses Scenic Route's curated discovery data."
               : "This preview uses Scenic Route's curated discovery data."}
           </>

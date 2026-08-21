@@ -5,13 +5,12 @@ import { cn } from "@/lib/utils";
 
 interface Props {
   poi: Poi;
-  minutesAway?: number | undefined;
   onLearnMore: () => void;
   onSkip?: (() => void) | undefined;
   className?: string | undefined;
 }
 
-export function DiscoveryCard({ poi, minutesAway, onLearnMore, onSkip, className }: Props) {
+export function DiscoveryCard({ poi, onLearnMore, onSkip, className }: Props) {
   const { saved, toggle } = useSavedDiscoveries();
   const isSaved = saved.includes(poi.id);
 
@@ -22,11 +21,6 @@ export function DiscoveryCard({ poi, minutesAway, onLearnMore, onSkip, className
           <h3 className="text-display text-lg leading-tight">{poi.name}</h3>
           <p className="mt-0.5 text-xs text-muted-foreground">{poi.kicker}</p>
         </div>
-        {typeof minutesAway === "number" && (
-          <span className="shrink-0 rounded-full bg-secondary px-2.5 py-1 text-xs font-medium tabular-nums">
-            {minutesAway <= 0 ? "Preview stop" : `≈${minutesAway} min in preview`}
-          </span>
-        )}
       </div>
       <p className="mt-2.5 text-sm leading-relaxed text-muted-foreground">{poi.description}</p>
       <div className="mt-3.5 flex items-center gap-2">

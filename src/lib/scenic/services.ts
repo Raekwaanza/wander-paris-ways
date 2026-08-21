@@ -266,7 +266,7 @@ const hybridRouting: RoutingService = {
       id: stableFastestId(from, to),
       profile: "fastest",
       title: "Fastest",
-      blurb: "The most direct walking route.",
+      blurb: "The direct walking route used as the comparison baseline.",
       minutes,
       km: Math.round((provider.distanceMeters / 1_000) * 10) / 10,
       extraMinutes: 0,

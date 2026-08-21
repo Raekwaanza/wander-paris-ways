@@ -25,14 +25,16 @@ export const Route = createFileRoute("/navigate")({
   }),
   head: () => ({
     meta: [
-      { title: "Walking now — Scenic Route Paris" },
+      { title: "Route preview — Scenic Route Paris" },
       {
         name: "description",
-        content:
-          "Follow your selected Scenic Route walking preview with discovery cards along the way.",
+        content: "Preview your selected route with curated discoveries shown near the route.",
       },
-      { property: "og:title", content: "Walking now — Scenic Route" },
-      { property: "og:description", content: "Discoveries as you go, not a tour." },
+      { property: "og:title", content: "Route preview — Scenic Route" },
+      {
+        property: "og:description",
+        content: "Preview a route with curated discoveries shown nearby.",
+      },
     ],
   }),
   component: NavigatePage,
@@ -122,8 +124,8 @@ function NavigatePage() {
               <p className="text-eyebrow text-muted-foreground">Route preview</p>
               <h1 className="text-display mt-1 text-2xl">This route is preview-only</h1>
               <p className="mt-2 text-sm text-muted-foreground">
-                Scenic, Explorer, and Wander routes are still being matched to the real pedestrian
-                network. Choose an available walking route for navigation right now.
+                Real pedestrian routing isn't available for this route right now, so walking
+                directions are disabled.
               </p>
             </div>
             <Link
@@ -143,11 +145,9 @@ function NavigatePage() {
   const remainingKm = Math.round(route.km * (1 - progress) * 10) / 10;
 
   const visible = route.discoveries.filter((d) => !skipped.includes(d.id));
+  // Prototype route-preview sequencing; this is not GPS or position-aware discovery timing.
   const upcomingIndex = Math.min(visible.length - 1, Math.floor(progress * (visible.length + 0.4)));
   const upcoming = visible[Math.max(0, upcomingIndex)] ?? null;
-  const minutesAway = upcoming
-    ? Math.max(0, Math.round(route.minutes * (1 - progress) * 0.24))
-    : undefined;
 
   return (
     <>
@@ -182,7 +182,7 @@ function NavigatePage() {
               type="button"
               onClick={() => setRunning((r) => !r)}
               className="inline-flex size-10 items-center justify-center rounded-full border border-border bg-card/90 shadow-card backdrop-blur"
-              aria-label={running ? "Pause walk" : "Resume walk"}
+              aria-label={running ? "Pause preview" : "Resume preview"}
             >
               {running ? (
                 <Pause className="size-4" strokeWidth={1.75} />
@@ -215,15 +215,14 @@ function NavigatePage() {
               <DiscoveryCard
                 key={upcoming.id}
                 poi={upcoming}
-                minutesAway={minutesAway}
                 onLearnMore={() => setDetail(upcoming)}
                 onSkip={() => setSkipped((s) => [...s, upcoming.id])}
               />
             ) : (
               <div className="surface-card p-4">
-                <p className="text-sm font-medium">Straight on to {to.name}.</p>
+                <p className="text-sm font-medium">Continue the preview to {to.name}.</p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Nothing else worth stopping for on this stretch.
+                  No more curated discoveries remain in this preview sequence.
                 </p>
               </div>
             )}

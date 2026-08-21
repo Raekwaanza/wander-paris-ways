@@ -155,10 +155,10 @@ function makeRoute(
   const matchedInterests = matchedInterestsForPois(stops, opts.interests);
   const blurb =
     profile === "fastest"
-      ? "Get there efficiently."
+      ? "An estimated direct-route preview."
       : profile === "scenic"
-        ? `A discovery-rich preview through ${stops.length} curated Paris stops.`
-        : "A longer preview built around curated Paris discoveries.";
+        ? `A concept preview with ${stops.length} curated Paris discoveries nearby.`
+        : "A discovery-focused preview with curated Paris discoveries nearby.";
 
   return {
     id: `${profile}-${Math.round(km * 100)}`,
