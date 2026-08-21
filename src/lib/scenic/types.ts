@@ -125,6 +125,35 @@ export interface Place extends LatLng {
 
 export type RouteProfile = "fastest" | "scenic" | "explorer";
 
+export type RouteFeedbackRating = "loved" | "okay" | "not-for-me";
+
+export type RouteFeedbackAspectId =
+  | "beautiful-streets"
+  | "hidden-places"
+  | "history"
+  | "architecture"
+  | "courtyards-passages"
+  | "food-cafes";
+
+/** Explicit, device-local feedback context. It intentionally contains no route geometry or location. */
+export interface RouteFeedback {
+  id: string;
+  routeId: string;
+  tripCreatedAt: number;
+  mode: "route" | "wander";
+  profile: RouteProfile;
+  routingSource: "openrouteservice";
+  rating: RouteFeedbackRating;
+  aspects: RouteFeedbackAspectId[];
+  selectedInterests: InterestId[];
+  matchedInterests: InterestId[];
+  discoveryPoiIds: string[];
+  extraMinutes: number;
+  completionKind: "automatic-arrival" | "manual-end";
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface RouteReasonLine {
   count: number;
   label: string;
