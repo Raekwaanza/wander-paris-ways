@@ -1,1069 +1,341 @@
-# Paris Wander
+# Scenic Route
 
-Build "Scenic Route" — A Paris Scenic Walking Navigation App
+Scenic Route is a mobile-first Paris walking application that helps people reach a real destination while taking a more interesting pedestrian route.
 
-Create a polished, mobile-first web application called Scenic Route.
+Instead of optimizing only for minimum travel time, the app compares real pedestrian-route candidates against curated discoveries and user interests, while keeping detour and time constraints explicit.
 
-Scenic Route is navigation for curious walkers who have somewhere to go, but do not necessarily want the fastest route.
+> **Development status:** functional MVP architecture. Core provider-backed routing, navigation, device-local feedback/personalization, and sharing are implemented. Test source and manual CI scaffolding exist, but the dependency and browser-test stack must pass the local validation gate before real-world route evaluation begins.
 
-Instead of optimizing exclusively for efficiency, Scenic Route helps users get from Point A to Point B through streets, landmarks, gardens, passages, architecture, cafés, historic sites, and hidden gems that make the journey itself worthwhile.
+Scenic Route is not described here as production-ready, fully tested, or validated by walking in Paris. The prompt that originally seeded the prototype is preserved separately as the [Original Scenic Route Product Brief](docs/original-product-brief.md); it is historical context, not an implementation specification.
 
-The initial MVP should focus exclusively on walking routes in central Paris.
+## What Scenic Route Does
 
-Core Product Concept
+The current application lets a user:
 
-The central user question is:
+- choose seeded or MapTiler-searched Paris start and destination places;
+- use the browser's current location as either endpoint;
+- select explicit interests, walking pace, units, and a `+10`, `+20`, or `+30` minute ordinary-route detour allowance;
+- compare Fastest, Scenic, and Explorer route profiles;
+- use **I have time to explore** (Wander) with a 10–120 minute total budget and a required destination;
+- navigate eligible real routes with continuous GPS progress, accuracy feedback, off-route warnings, recovery, and arrival detection;
+- see curated discoveries in their real order along the chosen route, inspect details, and save discoveries;
+- save a completed route summary and submit explicit route feedback;
+- use conservative, deterministic, device-local preference learning on later trips; and
+- share eligible real routes through portable, validated links without a Scenic Route backend.
 
-"I'm here, I need to get there, and I have a little extra time. Show me a more interesting way to walk."
+## Route Profiles and Fallbacks
 
-Example:
+### Fastest
 
-A user is near Opéra and wants to walk to Le Marais.
+Fastest is the direct OpenRouteService (ORS) pedestrian baseline when ORS is available. It is the default selection on Plan, has no discovery personalization, and provides the baseline used to calculate other profiles' extra time.
 
-Instead of only showing the fastest 25-minute route, Scenic Route might offer:
+### Scenic
 
-Fastest — 25 min
+Scenic is the highest-scoring eligible candidate among the real pedestrian candidates currently returned by ORS. Eligibility respects the user's hard detour cap. Candidate scoring uses curated POIs near each route; it does not fabricate a scenic path.
 
-Scenic — 34 min, +9 min
+### Explorer
 
-Explorer — 46 min, +21 min
+Explorer favors a discovery-backed candidate with more discoveries and better spread while remaining within the detour cap. Selection attempts to remain distinct from both Fastest and Scenic; if no suitable real Explorer candidate exists, the product can show a synthetic Preview alternative instead.
 
-The Scenic and Explorer routes should explain why they are worth the additional time.
+### Wander / I Have Time
 
-For example:
+Wander treats the chosen minutes as a total walking-time budget toward a required destination—not as a sightseeing loop and not as the ordinary detour cap. It can use an ORS duration Matrix to evaluate sequences containing one or two curated routing anchors, then requests a real ORS via route. Depending on feasibility it returns a targeted, direct-only, or insufficient-time real route, or a Preview when ORS is unavailable.
 
-Scenic · 34 min
-+9 minutes
+### Real routes versus Preview routes
 
-You'll pass:
+The product has two visibly different route sources:
 
-Galerie Vivienne
+1. **Provider-backed routes** use ORS pedestrian-network geometry and can become navigation-ready.
+2. **Synthetic Preview routes** keep planning usable when ORS is unavailable or cannot supply a suitable alternative. They are estimates based on mock geometry and are **not navigation-ready**.
 
-Jardin du Palais Royal
+Only a route whose `routingSource` is `openrouteservice` passes the central guard in [`navigation.ts`](src/lib/scenic/navigation.ts) and can enter live navigation. Preview is not equivalent to real routing.
 
-Passage des Panoramas
+The deterministic server-side E2E fixture described under [Testing](#testing) is a third, test-only mechanism: it behaves as an ORS test double and exercises the normal analysis, scoring, and selection pipeline. It is not the product Preview generator.
 
-A quieter network of historic streets
+## Design and Product Principles
 
-The product should make users feel that they are discovering Paris without needing to plan a sightseeing itinerary.
+- The destination still matters, including in Wander.
+- Extra time is explicit and ordinary-route detour caps are hard eligibility constraints.
+- Route explanations should say what makes a route interesting without fake match percentages or unsupported road-quality claims.
+- The experience supports incidental discovery rather than pretending to be a formal guided tour.
+- Precise live location stays in memory by default.
+- Provider geometry is preferred over fabricated scenic paths.
+- Explicit interests have more influence than learned preferences.
 
-1. Design Direction
+## Tech Stack
 
-The app should feel:
+| Area                      | Current implementation                                       |
+| ------------------------- | ------------------------------------------------------------ |
+| Language and UI           | TypeScript, React 19                                         |
+| Application framework     | TanStack Router and TanStack Start                           |
+| Build and styling         | Vite 8, Tailwind CSS 4                                       |
+| Map                       | MapLibre GL JS with the OpenFreeMap Liberty style by default |
+| Package/runtime tooling   | Bun (with npm-compatible scripts also used in CI)            |
+| Unit tests                | Vitest, Node test environment                                |
+| Walking routes and Matrix | OpenRouteService (`foot-walking`)                            |
+| Forward/reverse geocoding | MapTiler Geocoding API                                       |
 
-Elegant
+Radix UI primitives and local Scenic components provide the interface. The application does not currently integrate speculative POI providers such as Foursquare, Wikidata, OpenTripMap, Google Maps, or Overpass.
 
-Parisian
+## Architecture
 
-Exploratory
-
-Calm
-
-Premium but approachable
-
-Map-first rather than content-heavy
-
-Modern without feeling like a generic SaaS dashboard
-
-Avoid an overly touristy visual style.
-
-Do not use stereotypical Eiffel Tower graphics, berets, or excessive French flag imagery.
-
-Think:
-
-Apple Maps × Monocle × Airbnb Experiences × a beautifully designed independent Paris travel guide
-
-Use generous whitespace, large photography where appropriate, subtle shadows, rounded cards, and restrained typography.
-
-Suggested visual system
-
-Primary palette:
-
-Warm cream / off-white background
-
-Charcoal typography
-
-Deep forest or muted sage accent
-
-Muted terracotta or burgundy as a secondary accent
-
-Soft gray map/interface elements
-
-Typography should feel editorial and sophisticated.
-
-Use a clean sans-serif for interface elements and optionally an elegant serif for headings or discovery-card titles.
-
-The map should remain the dominant visual element.
-
-2. Target User
-
-The primary MVP user is:
-
-A tourist, international visitor, student, temporary resident, or expat in Paris who already walks around the city and wants to discover interesting places without taking a formal tour.
-
-They may be:
-
-Walking from their hotel to dinner
-
-Leaving a museum and heading toward a café
-
-Walking between neighborhoods
-
-Going from a Metro station to an attraction
-
-Killing 30 to 60 minutes before a reservation
-
-Exploring Paris without wanting to construct an itinerary
-
-The experience should require almost no planning.
-
-3. Geographic Scope
-
-For the prototype, focus on central Paris:
-
-1st arrondissement
-
-2nd arrondissement
-
-3rd arrondissement
-
-4th arrondissement
-
-5th arrondissement
-
-6th arrondissement
-
-7th arrondissement
-
-Optionally the 8th arrondissement
-
-The application architecture should eventually support additional neighborhoods and cities, but do not expose city switching prominently in the MVP.
-
-Paris should feel like the product's natural home.
-
-4. Primary User Flow
-
-Home Screen
-
-Create a full-screen or near-full-screen interactive map of Paris.
-
-At the top, display the Scenic Route logo/name.
-
-The primary input should resemble a navigation app:
-
-Where are you going?
-
-Allow:
-
-Starting point
-
-Current location
-
-Search for another place
-
-Destination
-
-Search for address, landmark, restaurant, café, museum, park, hotel, etc.
-
-Example:
-
-From:
-Current Location — Opéra
-
-To:
-Place des Vosges
-
-Primary CTA:
-
-Find my route
-
-Below or alongside the input, include a subtle secondary option:
-
-I have time to explore
-
-5. Interest Personalization
-
-Before generating scenic routes, allow the user to select interests.
-
-Use attractive selectable chips/cards.
-
-Options:
-
-Architecture
-
-Historic Paris
-
-Hidden Gems
-
-Parks & Gardens
-
-Cafés
-
-Bookshops
-
-Art & Galleries
-
-Food
-
-Romantic
-
-Quiet Streets
-
-Local Favorites
-
-Iconic Paris
-
-Users can select multiple interests.
-
-Include:
-
-Surprise me
-
-as an easy default.
-
-Do not make interest selection mandatory.
-
-The app should still work immediately for someone who just wants a scenic route.
-
-6. Route Results
-
-Once the user selects a start and destination, show three route options.
-
-Fastest
-
-Example:
-
-Fastest
-24 min
-1.8 km
-
-"Get there efficiently."
-
-Scenic
-
-Example:
-
-Scenic
-33 min
-2.3 km
-+9 min
-
-"More beautiful streets and 4 discoveries along the way."
-
-Explorer
-
-Example:
-
-Explorer
-45 min
-3.1 km
-+21 min
-
-"The most interesting route within your available time."
-
-Make the Scenic route the visually recommended/default route.
-
-Each route card should show:
-
-Walking time
-
-Distance
-
-Additional time versus fastest
-
-Number of discoveries
-
-Match with selected interests
-
-Example:
-
-92% match for Architecture + Hidden Gems
-
-Selecting a route should update the route displayed on the map.
-
-7. Scenic Route Map
-
-The main navigation screen should show:
-
-User location
-
-Destination
-
-Scenic route polyline
-
-Discovery stops
-
-Walking progress
-
-Estimated remaining time
-
-Distance remaining
-
-Discovery points should appear as numbered or distinctive markers along the route.
-
-The map should make the difference between a normal route and a scenic route visually obvious.
-
-The scenic route can intentionally deviate through:
-
-Parks
-
-Historic streets
-
-Passages
-
-Riverfront areas
-
-Squares
-
-Interesting architecture
-
-Pedestrian areas
-
-Cultural locations
-
-8. Discovery Cards
-
-This is a critical part of the product.
-
-As the user travels, show small contextual cards explaining why the route passes through a location.
-
-Example:
-
-Galerie Vivienne
-
-Historic Passage · Architecture
-
-One of Paris's most elegant covered passages, opened in 1826 and known for its mosaic floors, glass roof, bookshops, and boutiques.
-
-2 min away
-
-Buttons:
-
-Learn more
-
-Save
-
-Skip
-
-Another example:
-
-Rue des Barres
-
-Hidden Gem · Historic Paris
-
-A quiet medieval-feeling street beside Saint-Gervais that offers a dramatically different atmosphere from the larger roads nearby.
-
-Cards should be concise.
-
-The goal is not to become Wikipedia.
-
-The user should understand in roughly 5 seconds:
-
-What is this, and why is Scenic Route taking me here?
-
-9. "Why This Route?" Feature
-
-Every Scenic or Explorer route should include a compact explanation.
-
-Example:
-
-Why this route?
-
-This walk adds 12 minutes but takes you through:
-
-2 historic covered passages
-
-1 garden
-
-3 architecturally notable streets
-
-1 lesser-known church
-
-42% less time on major roads
-
-Based on your interests:
-
-Architecture · Hidden Gems · Quiet Streets
-
-This feature is important for building trust in the routing system.
-
-The user should never feel that the app is adding distance arbitrarily.
-
-10. "I Have Time" Mode
-
-Create an alternate discovery flow.
-
-The user enters:
-
-Where do you eventually need to be?
-
-Then selects:
-
-How much time do you have?
-
-Options:
-
-15 minutes
-
-30 minutes
-
-45 minutes
-
-60 minutes
-
-Custom
-
-Example:
-
-"I have 45 minutes before dinner."
-
-Scenic Route should generate a wandering route that ends at the required destination at approximately the requested time.
-
-Display:
-
-45-Minute Wander
-
-You'll discover:
-
-Jardin Anne Frank
-
-Hôtel de Soubise
-
-Rue des Rosiers
-
-Place des Vosges
-
-Arrive around 7:25 PM
-
-This should feel like one of the application's signature experiences.
-
-11. Route Scoring Model
-
-Design the product architecture around the following conceptual scoring system:
-
-Route Score = Scenic Value + Interest Match + Landmark Quality + Street Appeal - Detour Penalty - Inconvenience Penalty
-
-Potential scenic signals include:
-
-Landmark density
-
-Monuments
-
-Historic buildings
-
-Churches
-
-Museums
-
-Fountains
-
-Visual appeal
-
-Parks
-
-Gardens
-
-Plazas
-
-Riverbanks
-
-Pedestrian streets
-
-Historic streets
-
-Cultural appeal
-
-Bookshops
-
-Galleries
-
-Markets
-
-Cafés
-
-Independent shops
-
-Hiddenness
-
-Favor some locations that are interesting but less obvious or less tourist-heavy.
-
-Route comfort
-
-Prefer:
-
-Walkable streets
-
-Pedestrian areas
-
-Lower traffic
-
-Pleasant crossings
-
-Comfortable streets
-
-Detour cost
-
-Penalize routes that add excessive travel time.
-
-User preferences
-
-Increase the score of points matching the user's chosen interests.
-
-For the first prototype, it is acceptable to simulate some of this logic using curated Paris locations and mocked route scoring.
-
-Build the code so that real routing and POI APIs can replace mocked data later.
-
-12. MVP Data Architecture
-
-Structure the app so future integrations can include:
-
-OpenStreetMap
-
-Overpass API
-
-Wikidata
-
-OpenTripMap
-
-Foursquare Places
-
-Mapbox
-
-Google Maps Platform
-
-Do not make the prototype dependent on every API being configured.
-
-If external credentials are unavailable, create a compelling functional prototype using:
-
-Seeded Paris POI data
-
-Example routes
-
-Mock scenic scores
-
-Realistic map interactions
-
-Clearly isolate mocked services so they can later be swapped for production APIs.
-
-13. Sample Paris POIs
-
-Seed the prototype with recognizable and lesser-known places such as:
-
-Palais Royal
-
-Jardin du Palais Royal
-
-Galerie Vivienne
-
-Passage des Panoramas
-
-Place des Vosges
-
-Jardin Anne Frank
-
-Hôtel de Soubise
-
-Square du Vert-Galant
-
-Place Dauphine
-
-Rue des Barres
-
-Saint-Gervais-Saint-Protais
-
-Shakespeare and Company
-
-Jardin du Luxembourg
-
-Rue Mouffetard
-
-Arènes de Lutèce
-
-Canal Saint-Martin
-
-Île Saint-Louis
-
-Musée Carnavalet
-
-Marché des Enfants Rouges
-
-Cour du Commerce Saint-André
-
-Give each seeded POI:
-
-Name
-
-Latitude/longitude
-
-Category
-
-Short description
-
-Scenic score
-
-Hidden-gem score
-
-Historic score
-
-Architecture score
-
-Nature score
-
-Food/café score
-
-Popularity score
-
-Suggested visit duration
-
-14. Route Completion
-
-When the user arrives, show:
-
-You took the Scenic Route.
-
-3.2 km walked
-5 discoveries
-18 extra minutes
-Paris explored: +1 neighborhood
-
-Then ask:
-
-How was this route?
-
-Use three simple options:
-
-Loved it
-
-It was okay
-
-Not for me
-
-Then:
-
-What did you like?
-
-Optional chips:
-
-Beautiful streets
-
-Hidden places
-
-History
-
-Architecture
-
-Quiet route
-
-Food & cafés
-
-This feedback should conceptually improve future recommendations.
-
-CTA:
-
-Save route
-
-Secondary:
-
-Share route
-
-15. Saved Routes
-
-Create a simple Saved screen.
-
-Cards should show:
-
-Opéra → Le Marais
-Explorer Route
-45 min · 7 discoveries
-
-Tags:
-Architecture · Hidden Gems
-
-Also allow saved individual discoveries.
-
-Do not require an account for the prototype.
-
-Use local storage to persist saved routes and preferences.
-
-16. Privacy
-
-Privacy should be treated as a product feature.
-
-For the MVP:
-
-Do not require account creation
-
-Do not permanently store location history
-
-Explain why location access is useful
-
-Store preferences locally where practical
-
-Only save routes when the user intentionally chooses Save
-
-For the location permission UI, use friendly language:
-
-Explore from where you are
-
-Scenic Route uses your location to build walks around you. Your route history isn't saved unless you choose to save a route.
-
-Buttons:
-
-Use my location
-
-Enter location manually
-
-17. Navigation
-
-Keep app navigation extremely simple.
-
-Bottom mobile navigation:
-
-Explore
-Map icon
-
-Saved
-Bookmark icon
-
-Profile
-User/preferences icon
-
-Explore should be the default.
-
-Profile/settings can include:
-
-Preferred interests
-
-Walking pace
-
-Maximum scenic detour
-
-Distance units
-
-Privacy
-
-About Scenic Route
-
-18. Maximum Detour Preference
-
-Allow users to set how adventurous Scenic Route can be.
-
-How scenic should your walks be?
-
-Efficient
-Up to +10 minutes
-
-Balanced
-Up to +20 minutes
-
-Explorer
-Up to +30 minutes
-
-This should influence route generation.
-
-19. Important Product Principles
-
-Follow these principles throughout the application.
-
-1. Discovery, not tourism
-
-This should not feel like a sightseeing tour app.
-
-The user already has somewhere to go.
-
-Scenic Route simply makes the journey better.
-
-2. The destination still matters
-
-Never create a route so scenic that it becomes inconvenient.
-
-Always communicate the added travel time.
-
-3. Explain the algorithm
-
-The user should understand why a route is recommended.
-
-4. Trust over monetization
-
-Do not include advertisements or sponsored route manipulation in this prototype.
-
-5. Low friction
-
-A user should be able to open the app, enter a destination, and receive a scenic route in seconds.
-
-6. Mobile first
-
-Assume most users are walking through Paris while holding their phone.
-
-Design every interaction accordingly.
-
-20. Prototype Screens
-
-Build at minimum:
-
-Splash / first-open experience
-
-Map home
-
-Destination search
-
-Interest selection
-
-Route comparison
-
-Active scenic navigation
-
-Discovery card
-
-Expanded discovery details
-
-Why This Route
-
-I Have Time mode
-
-Route completion and feedback
-
-Saved routes
-
-Preferences/settings
-
-Do not build only static screens.
-
-Create navigation and interactions between them so the application feels like a functioning MVP.
-
-21. Demo Route
-
-Create one particularly polished end-to-end demo:
-
-Opéra → Place des Vosges
-
-Generate:
-
-Fastest
-Approximately 30 minutes
-
-Scenic
-Approximately 38–42 minutes
-
-Explorer
-Approximately 50–55 minutes
-
-The Scenic or Explorer route should intentionally surface several points such as:
-
-Palais Royal
-
-Galerie Vivienne
-
-A historic covered passage
-
-A quiet/historic street
-
-Hôtel de Soubise or another Marais discovery
-
-Place des Vosges
-
-Use realistic sample descriptions and route statistics.
-
-This demo should communicate the product's value immediately.
-
-22. Empty and Loading States
-
-Make the loading experience part of the brand.
-
-Instead of:
-
-"Loading..."
-
-Use copy such as:
-
-Finding the interesting way there...
-
-Then cycle through subtle messages:
-
-"Looking for quieter streets..."
-
-"Checking gardens and passages..."
-
-"Matching places to your interests..."
-
-"Balancing discovery with your arrival time..."
-
-For no-results states:
-
-We couldn't find a route worth the detour.
-
-"The fastest route may actually be your best option this time."
-
-Do not force a scenic result when one doesn't make sense.
-
-23. Landing Experience
-
-On first launch, use a minimal introduction rather than a traditional marketing homepage.
-
-Hero copy:
-
-Take the interesting way there.
-
-Scenic Route turns everyday walks into personalized city discovery.
-
-Input:
-
-Where are you going?
-
-CTA:
-
-Find a scenic route
-
-Secondary explanatory text:
-
-"Choose how much extra time you're willing to spend. We'll find something worth walking through."
-
-Then transition directly into the map experience.
-
-24. Brand Voice
-
-Copy should be:
-
-Intelligent
-
-Curious
-
-Understated
-
-Friendly
-
-Concise
-
-Avoid exaggerated travel language such as:
-
-"Embark on an unforgettable adventure!"
-
-Prefer:
-
-"There's a more interesting way there."
-
-"Add 12 minutes. See a different side of Paris."
-
-"Worth the detour."
-
-"Take the interesting way."
-
-"Found something nearby."
-
-"Paris is better on foot."
-
-25. Responsive Behavior
-
-Prioritize mobile dimensions around modern iPhone and Android sizes.
-
-Desktop should still look polished.
-
-On mobile:
-
-Map occupies most of the viewport
-
-Route cards use draggable bottom sheets
-
-Discovery cards appear above the bottom navigation
-
-Inputs should be thumb-friendly
-
-Avoid tiny map controls
-
-Use large touch targets
-
-On desktop:
-
-Use a split screen:
-
-Left panel: route/search/discoveries
-Right panel: map
-
-26. Technical Priorities
-
-Prioritize:
-
-Excellent UI
-
-Functional map
-
-Start/destination interaction
-
-Multiple route choices
-
-Seeded scenic POIs
-
-Interest-based filtering
-
-Route explanation
-
-Saved routes
-
-Responsive mobile navigation
-
-Clean, modular code
-
-Avoid spending excessive effort on authentication, billing, or backend infrastructure at this stage.
-
-The goal is to validate:
-
-Does this experience make someone want to choose Scenic Route instead of simply opening Google Maps?
-
-27. Final Product Standard
-
-The result should feel like an early-stage startup product that could realistically be shown to:
-
-Potential users
-
-HEC classmates
-
-Paris tourists
-
-Boutique hotels
-
-Potential cofounders
-
-Investors
-
-Engineers
-
-It should not look like a generic hackathon project.
-
-Prioritize visual polish and the core A-to-B scenic routing interaction above feature quantity.
-
-The moment that needs to feel magical is:
-
-Fastest: 27 min
-
-versus
-
-Scenic: 39 min · +12 min
-
-"Pass through a hidden 19th-century arcade, Palais Royal's gardens, two historic streets, and a quieter entrance into the Marais."
-
-Then:
-
-Take Scenic Route
-
-That interaction is the heart of the product.
-
-This project was built with [Lovable](https://lovable.dev).
-
-## Build with Lovable
-
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/45d449b8-5068-4cc4-82ae-e43ebde059f6).
-
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
-
-## Development
-
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
-
-```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
-npm run dev
+```mermaid
+flowchart TD
+  UI[Routes and Scenic UI] --> Hooks[use-services hooks]
+  Hooks --> Services[services.ts boundary]
+  Services --> Geo[Geocoding and reverse geocoding]
+  Services --> Routing[Routing and Wander]
+  Services --> POI[Curated POIs and route analysis]
+  Geo --> MT[MapTiler server adapter]
+  Routing --> ORS[ORS directions and Matrix server adapters]
 ```
+
+[`src/lib/scenic/services.ts`](src/lib/scenic/services.ts) is the application service boundary. Route pages consume it directly or through [`use-services.ts`](src/lib/scenic/use-services.ts); contributors should not add direct provider HTTP calls to UI routes. Credential-bearing MapTiler and ORS calls live in TanStack server functions in `*.server.ts` modules.
+
+The ordinary route pipeline is:
+
+```mermaid
+flowchart TD
+  Candidates[ORS pedestrian candidates] --> Corridor[120 m route-corridor analysis]
+  Corridor --> Score[Internal candidate scoring]
+  Score --> Scenic[Scenic selection]
+  Score --> Explorer[Explorer selection]
+  Scenic --> Materialize[ScenicRoute materialization]
+  Explorer --> Materialize
+```
+
+Scoring considers scenic editorial value, landmark quality, explicit interest match, bounded learned preference, discovery spread, and a detour penalty. Selection then enforces the appropriate eligibility and distinctness policies. See [Architecture](docs/architecture.md) for the detailed route, navigation, persistence, learning, and sharing flows.
+
+### Real-route geometry invariant
+
+> Provider-backed routes use the `LineString` returned by OpenRouteService. Scenic Route may analyze, score, and select among candidate routes, but it does not manually weave POIs into real provider geometry.
+
+Preserving every provider vertex supports pedestrian-network trust, consistent route identity and sharing, and correct route projection during navigation. Explicit server-side test fixtures are the only controlled exception and can run only outside production.
+
+### OpenRouteService routing
+
+ORS adapters use the current `https://api.heigit.org/openrouteservice/v2` host and the `foot-walking` profile:
+
+- ordinary routing requests the shortest route plus a bounded ORS alternatives request with `target_count: 3`;
+- response normalization accepts distinct valid GeoJSON `LineString` features and leaves their vertices untouched;
+- the first provider-ranked candidate is the direct Fastest baseline;
+- Wander uses the duration Matrix to plan possible anchors, then a fixed 2–4 point via-directions request with no alternatives; and
+- unavailable credentials, timeouts, or invalid provider responses fail safely into Preview/direct-only behavior as applicable.
+
+API credentials never belong in client code or this README.
+
+### MapTiler geocoding
+
+MapTiler supplies Paris-bounded forward location search and best-effort reverse label enrichment for a browser GPS fix. Seeded places remain a forward-search fallback when MapTiler is unavailable. Browser-provided GPS coordinates are authoritative: reverse geocoding may improve a label, but never moves the fix.
+
+### Map rendering
+
+[`ParisMap.tsx`](src/components/scenic/ParisMap.tsx) renders GeoJSON with MapLibre and defaults to OpenFreeMap Liberty. It uses zero GeoJSON source tolerance so real route vertices are not simplified or smoothed. If MapLibre cannot load or initialize within its startup window, the application uses [`LegacyParisMap.tsx`](src/components/scenic/LegacyParisMap.tsx); that fallback also avoids smoothing ORS geometry.
+
+## Curated Paris POIs
+
+The bundled [`pois.ts`](src/lib/scenic/pois.ts) currently contains **98** editorially curated POIs across **14 arrondissements**: 1–10, 12, and 16–18. This is intentionally not a claim of all-20-arrondissement coverage. Distribution is uneven because curation quality and meaningful pedestrian anchors take priority over a quota.
+
+Each POI has:
+
+- one of 19 typed categories;
+- descriptive editorial content and internal 0–10 editorial inputs;
+- interest tags and an approximate editorial visit duration; and
+- an arrondissement, neighborhood, and coordinate chosen as a meaningful pedestrian anchor where practical.
+
+[`poi-validation.ts`](src/lib/scenic/poi-validation.ts) validates identifiers, text, coordinates, categories, scores, interests, and dataset-wide interest coverage when the module is loaded. The source and access research, coordinate rationale, coverage audits, and caveats are recorded in [POI expansion 10.2](docs/poi-expansion-10.2.md) and [POI expansion 10.3](docs/poi-expansion-10.3.md).
+
+### Route-corridor discoveries
+
+Standard Scenic and Explorer routes do not add discoveries as waypoints. The flow is **real route → geometric corridor analysis → nearby curated POIs**. [`route-analysis.ts`](src/lib/scenic/route-analysis.ts) defines the current default corridor radius of **120 metres**, projects each POI onto the route, and records its distance from and distance along the route.
+
+Corridor proximity means only that a POI is geometrically near the route; it is not by itself a guarantee of access or a walking instruction. Wander routing anchors are an explicit and separate mechanism.
+
+## Scenic Candidate Scoring
+
+[`route-scoring.ts`](src/lib/scenic/route-scoring.ts) contains the inspectable deterministic heuristic. It combines:
+
+- scenic editorial value;
+- landmark quality derived from the curated editorial fields;
+- explicit selected-interest matches;
+- a bounded learned-preference blend;
+- discovery spread along route quarters; and
+- an extra-time detour penalty.
+
+Scores are internal, unitless ranking values—not percentages, reviews, probabilities, or objective route-quality claims. The UI does not present a fabricated percent match. Explicit interests dominate learned preference, and no score can override the hard detour eligibility cap. Numeric tuning remains in the implementation rather than being duplicated here.
+
+## Feedback and Preference Learning
+
+Eligible completed real routes accept one explicit rating—**Loved it**, **It was okay**, or **Not for me**—and optional liked aspects such as history, architecture, hidden places, or food and cafés. These records are bounded and device-local.
+
+[`preference-learning.ts`](src/lib/scenic/preference-learning.ts) turns recent explicit signals into capped interest affinities through deterministic weighted logic. It is not an AI recommendation model. A learned-preference snapshot is frozen into a new `TripPlan`; feedback submitted on Complete can affect later plans but does not rerank the completed trip. Explicit interests remain stronger than learned affinities.
+
+## Local Persistence
+
+The browser store in [`store.ts`](src/lib/scenic/store.ts) uses localStorage key **`scenic-route:v1`** and schema **version 4**. It persists:
+
+- preferences (interests, detour cap, pace, units, and intro state);
+- saved route summaries;
+- saved discovery IDs;
+- the current `TripPlan`, including its frozen learned-preference snapshot; and
+- validated explicit route-feedback records.
+
+Saved routes intentionally preserve summaries, so this is not a claim that the app stores no route information. Continuous GPS fixes and adherence history are not store fields. A trip endpoint selected as Current location persists only the `live-current-location` sentinel, not the precise coordinates.
+
+## Location and Privacy
+
+- No account is required; application state is device-local.
+- A current precise browser fix is held in module memory for the current session.
+- A current-location `TripPlan` stores a sentinel instead of precise coordinates.
+- `watchPosition` navigation fixes, off-route history, and skipped discoveries remain runtime-only and are not written to localStorage.
+- Reverse geocoding is best-effort label enrichment and does not replace browser coordinates.
+- A share created from Current location requires an explicit disclosure before static start/end coordinates are encoded into the link.
+
+These are implementation invariants, not a broad legal or regulatory compliance claim.
+
+## Live Navigation
+
+Only provider-backed routes can start navigation. [`use-navigation-location.ts`](src/lib/scenic/use-navigation-location.ts) uses `navigator.geolocation.watchPosition`; a fix is usable only inside the supported Paris bounds and with reported accuracy at or below 100 metres. Poor fixes do not replace the last usable fix.
+
+```mermaid
+flowchart LR
+  GPS[Accepted GPS fix] --> Match[nearestPointOnPath]
+  Match --> Adherence[Accuracy-aware adherence]
+  Adherence --> Progress[Displayed along-route progress]
+  Progress --> Discoveries[Projected active discovery]
+  Progress --> Arrival[Progress plus destination proximity]
+```
+
+Navigation projects physical location onto the selected route with `nearestPointOnPath`. It suppresses only small backward projection jitter; real backtracking remains visible. Accuracy-aware hysteresis requires consecutive away fixes before confirming off-route, freezes displayed progress while confirmed off-route, and requires consecutive reliable near-route fixes to recover. Arrival likewise requires both near-end route progress and physical destination proximity across multiple fixes.
+
+### Discovery sequencing
+
+[`navigation-discoveries.ts`](src/lib/scenic/navigation-discoveries.ts) projects every displayed POI onto the actual selected path and orders it by distance along that route. Active discovery selection therefore does **not** use `route progress × discovery count` and does not show fabricated POI ETAs. Skipped discovery IDs exist only in the navigation component's runtime state.
+
+## Route Sharing
+
+Share links are backend-free, URL-fragment encoded, bounded, and validated before use. They contain endpoints, mode/profile, route identity, route preferences, discovery IDs, expected summary values, and—only for targeted Wander—validated curated waypoint IDs.
+
+They do **not** contain route geometry, learned-preference profiles, feedback, or GPS history. The recipient requests the route from ORS, reconstructs it, and verifies the stable route identity; malformed input is rejected, and provider changes or unavailable routing are surfaced rather than silently trusted. Only real ORS routes are share-eligible.
+
+## Project Structure
+
+```text
+src/
+  routes/                     TanStack route pages
+  components/scenic/          Product UI and map components
+  lib/scenic/
+    services.ts               Provider and domain-service boundary
+    use-services.ts           React adapters for route services
+    types.ts                  Domain contracts
+    store.ts                  Versioned device-local state
+    pois.ts                   Curated Paris POIs
+    poi-validation.ts         Dataset validation
+    route-analysis.ts         Route-corridor projection
+    route-scoring.ts          Internal candidate scoring
+    route-selection.ts        Scenic and Explorer selection
+    wander-routing.ts         Wander planning/materialization
+    navigation-location.ts    GPS fix normalization
+    navigation-progress.ts    Route projection/progress
+    navigation-adherence.ts   Off-route hysteresis
+    navigation-discoveries.ts Discovery placement/sequencing
+    preference-learning.ts    Deterministic local learning
+    shared-route.ts           Portable share contract
+    *.server.ts               Credential-bearing provider adapters/fixtures
+docs/                         Testing, architecture, audit, and research docs
+scripts/audit-walking-route.mjs
+```
+
+## Local Development
+
+Bun is the primary package manager:
+
+```bash
+git clone https://github.com/Raekwaanza/wander-paris-ways.git
+cd wander-paris-ways
+bun install
+cp .env.example .env
+bun run dev
+```
+
+On Windows, manually copy `.env.example` to `.env` if `cp` is inconvenient. Add only your own local credentials; do not commit `.env`.
+
+### Environment variables
+
+| Variable                    | Exposure              | Current behavior                                                                                                                                                                                                             |
+| --------------------------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OPENROUTESERVICE_API_KEY`  | Server-only secret    | Enables real ORS `foot-walking` directions, alternatives, Wander Matrix planning, and Wander via requests. Absence or provider failure uses safe fallbacks. Never prefix it with `VITE_`.                                    |
+| `MAPTILER_API_KEY`          | Server-only secret    | Enables Paris forward search and best-effort reverse labels for GPS. Seeded search and the unmodified GPS fix remain available when absent. Never prefix it with `VITE_`.                                                    |
+| `VITE_SCENIC_DATA_MODE`     | Public, non-secret    | Accepts `mock` or `live`, defaulting invalid/missing values to `mock`. The current hybrid services attempt keyed server providers regardless; `live` is reserved, warns, and does not activate a complete live provider set. |
+| `VITE_SCENIC_MAP_STYLE_URL` | Public, non-secret    | Overrides the MapLibre style; defaults to `https://tiles.openfreemap.org/styles/liberty`.                                                                                                                                    |
+| `SCENIC_E2E_FIXTURES`       | Server-only test flag | `1` activates deterministic provider fixtures only when `NODE_ENV !== "production"`. Do not treat it as normal app configuration.                                                                                            |
+
+### Available scripts
+
+These are the scripts currently declared in `package.json`:
+
+| Command              | Purpose                                                             |
+| -------------------- | ------------------------------------------------------------------- |
+| `bun run dev`        | Start the Vite development server.                                  |
+| `bun run build`      | Create a production build.                                          |
+| `bun run build:dev`  | Build in Vite development mode.                                     |
+| `bun run preview`    | Preview a built application locally.                                |
+| `bun run lint`       | Run repository-wide ESLint (currently affected by historical debt). |
+| `bun run format`     | Format the repository with Prettier.                                |
+| `bun run test`       | Run committed Vitest suites once.                                   |
+| `bun run test:watch` | Run Vitest in watch mode.                                           |
+
+There is currently no `test:e2e` or `test:e2e:live` package script. Those names appear in the future validation gate but are not available until the Playwright layer is implemented.
+
+## Testing
+
+Vitest is declared and Node-environment source suites cover route analysis/scoring/selection, Wander, navigation progress/adherence/discoveries, trip endpoints, feedback/learning, sharing, geometry, and deterministic provider fixtures. A server-only deterministic fixture seam is committed.
+
+The repository does **not** yet contain `@playwright/test`, Playwright configuration/specs, or browser-test scripts. Test source and CI scaffolding exist, but the dependency/test stack has not yet been fully validated in the previously constrained cloud environment. Do not interpret committed tests as a claim that all tests pass.
+
+`SCENIC_E2E_FIXTURES=1` replaces ORS/Matrix provider responses inside server functions so future deterministic browser tests traverse the normal route pipeline. Fixture activation refuses production (`NODE_ENV === "production"`). This differs from ordinary Preview routes, which are a user-visible product fallback with `routingSource: "mock"`.
+
+### CI status
+
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) is scaffolding with a manual `workflow_dispatch` trigger only. It pins Bun 1.2.14, uses `bun install --frozen-lockfile`, and runs independent **Unit tests** (`npm test`) and **Production build** (`npm run build`) jobs. It has not been characterized here as green. Automatic pull-request and main-branch triggers remain blocked until local validation.
+
+### Before field testing
+
+> **Do not begin route-quality data collection until the local validation gate in [`docs/testing.md`](docs/testing.md) has passed.** CI scaffolding alone does not satisfy that gate.
+
+The testing document is authoritative for the current unit/browser structure, pre-field commands, manual CI state, and future live ORS smoke expectations.
+
+## Known Development Constraints
+
+- Repository-wide ESLint has known historical formatting errors and warnings and is not yet a CI gate.
+- A full TypeScript `noEmit` check has existing application issues and is not currently a package script or CI gate.
+- The Playwright browser layer and its scripts remain absent and unexecuted.
+- Dependency-registry access in the prior Codex Cloud environment has been unreliable, which is why local frozen-install and execution validation remains explicit.
+- Recent project reports record a successful production build, but the current cloud attempt was blocked at dependency installation; a build alone would not validate providers, tests, or real-world routes.
+
+These constraints are tracked honestly without changing product runtime behavior in this documentation step.
+
+## Credentials
+
+- Never commit API keys; keep `.env` local.
+- ORS and MapTiler keys are server-only. Never expose them through `VITE_*` variables.
+- Never add credentials to shared-route links or browser localStorage.
+- Use provider secrets only through the existing server adapters.
+
+## Current Development Stage
+
+Implemented architecture includes real provider-backed routing, Scenic/Explorer ranking, destination-oriented Wander, GPS progress, off-route handling and recovery, route-projected discovery sequencing, local feedback/learning, validated route sharing, Vitest source scaffolding, deterministic provider fixtures, and manual CI scaffolding.
+
+Immediate work remains local dependency/test validation, completion of the Playwright browser layer, and later automatic CI activation. Upcoming work is a real-world Paris test build, route-evaluation tooling, and evidence-based routing/scoring tuning. Field testing has not started and remains behind the documented gate.
+
+## Developer Documentation
+
+- [Architecture](docs/architecture.md): service boundary, route generation, Wander, navigation, persistence, preference learning, and sharing identity.
+- [Testing and the pre-field-test gate](docs/testing.md): current test structure, missing browser layer, manual CI, and live ORS smoke expectations.
+- [Routing quality audit](docs/routing-quality-audit.md): route geometry flow, developer ORS audit tool, Snap diagnostics, GeoJSON output, and endpoint-offset diagnostics.
+- [POI expansion 10.2](docs/poi-expansion-10.2.md) and [POI expansion 10.3](docs/poi-expansion-10.3.md): research methodology, sources, access caveats, pedestrian-anchor rationale, and coverage.
+- [Original Scenic Route Product Brief](docs/original-product-brief.md): historical prototype/product intent; not current implementation documentation.
+
+## Lovable-Connected Repository
+
+This repository is connected to Lovable: pushed commits sync into the Lovable editor. Do not rewrite published history—avoid force pushes, rebasing or squashing already-pushed commits, and amending already-pushed commits. See [`AGENTS.md`](AGENTS.md) for the canonical instruction and keep each connected-branch commit in a working state.
