@@ -52,11 +52,16 @@ function PlanPage() {
   const from = resolvedFrom ?? services.geocoding.byId(CURRENT_LOCATION_ID)!;
   const to = resolvedTo ?? services.geocoding.byId("place-des-vosges")!;
 
-  const { data: routes, error } = useRoutes(from, to, {
-    interests: trip?.interests ?? prefs.interests,
-    detourCap: trip?.detourCap ?? prefs.detourCap,
-    pace: prefs.pace,
-  });
+  const { data: routes, error } = useRoutes(
+    from,
+    to,
+    {
+      interests: trip?.interests ?? prefs.interests,
+      detourCap: trip?.detourCap ?? prefs.detourCap,
+      pace: prefs.pace,
+    },
+    Boolean(trip && !missingEndpoint),
+  );
 
   useEffect(() => {
     setShowLoader(true);

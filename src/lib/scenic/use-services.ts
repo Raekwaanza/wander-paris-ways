@@ -18,10 +18,11 @@ export function useRoutes(
   from: LatLng,
   to: LatLng,
   opts: BuildOptions,
+  enabled = true,
 ): ServiceResult<ScenicRoute[]> {
   const [result, setResult] = useState<ServiceResult<ScenicRoute[]>>({
     data: null,
-    loading: true,
+    loading: enabled,
     error: null,
   });
   const interests = opts.interests.join(",");
@@ -31,6 +32,12 @@ export function useRoutes(
 
   useEffect(() => {
     let current = true;
+    if (!enabled) {
+      setResult({ data: null, loading: false, error: null });
+      return () => {
+        current = false;
+      };
+    }
     setResult({ data: null, loading: true, error: null });
     services.routing
       .routes(
@@ -55,7 +62,7 @@ export function useRoutes(
     return () => {
       current = false;
     };
-  }, [fromLat, fromLng, toLat, toLng, interests, detourCap, pace]);
+  }, [fromLat, fromLng, toLat, toLng, interests, detourCap, pace, enabled]);
 
   return result;
 }
@@ -65,10 +72,11 @@ export function useWanderRoute(
   to: LatLng,
   minutes: number,
   opts: BuildOptions,
+  enabled = true,
 ): ServiceResult<ScenicRoute> {
   const [result, setResult] = useState<ServiceResult<ScenicRoute>>({
     data: null,
-    loading: true,
+    loading: enabled,
     error: null,
   });
   const interests = opts.interests.join(",");
@@ -78,6 +86,12 @@ export function useWanderRoute(
 
   useEffect(() => {
     let current = true;
+    if (!enabled) {
+      setResult({ data: null, loading: false, error: null });
+      return () => {
+        current = false;
+      };
+    }
     setResult({ data: null, loading: true, error: null });
     services.routing
       .wander({ lat: fromLat, lng: fromLng }, { lat: toLat, lng: toLng }, minutes, {
@@ -98,7 +112,7 @@ export function useWanderRoute(
     return () => {
       current = false;
     };
-  }, [fromLat, fromLng, toLat, toLng, minutes, interests, detourCap, pace]);
+  }, [fromLat, fromLng, toLat, toLng, minutes, interests, detourCap, pace, enabled]);
 
   return result;
 }
@@ -110,10 +124,11 @@ export function useTripRoute(
   mode: "route" | "wander",
   profile: RouteProfile,
   wanderMinutes = 45,
+  enabled = true,
 ): ServiceResult<ScenicRoute> {
   const [result, setResult] = useState<ServiceResult<ScenicRoute>>({
     data: null,
-    loading: true,
+    loading: enabled,
     error: null,
   });
   const interests = opts.interests.join(",");
@@ -123,6 +138,12 @@ export function useTripRoute(
 
   useEffect(() => {
     let current = true;
+    if (!enabled) {
+      setResult({ data: null, loading: false, error: null });
+      return () => {
+        current = false;
+      };
+    }
     setResult({ data: null, loading: true, error: null });
     const request =
       mode === "wander"
@@ -160,7 +181,19 @@ export function useTripRoute(
     return () => {
       current = false;
     };
-  }, [fromLat, fromLng, toLat, toLng, interests, detourCap, pace, mode, profile, wanderMinutes]);
+  }, [
+    fromLat,
+    fromLng,
+    toLat,
+    toLng,
+    interests,
+    detourCap,
+    pace,
+    mode,
+    profile,
+    wanderMinutes,
+    enabled,
+  ]);
 
   return result;
 }

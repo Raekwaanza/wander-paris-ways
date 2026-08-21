@@ -25,8 +25,12 @@ const PACE_MULTIPLIER: Record<Pace, number> = {
   brisk: 0.88,
 };
 
+export function applyPaceMultiplier(minutes: number, pace: Pace = "steady"): number {
+  return minutes * PACE_MULTIPLIER[pace];
+}
+
 export function minutesFor(km: number, pace: Pace = "steady"): number {
-  return (km / PACE_KMH) * 60 * PACE_MULTIPLIER[pace];
+  return applyPaceMultiplier((km / PACE_KMH) * 60, pace);
 }
 
 function interestMatchScore(poi: Poi, interests: InterestId[]): number {
@@ -112,7 +116,10 @@ function weavePath(points: LatLng[], amplitude: number): LatLng[] {
     const m1 = lerp(p, q, 0.33);
     const m2 = lerp(p, q, 0.67);
     out.push({ lat: m1.lat + ny * amplitude * sign, lng: m1.lng + nx * amplitude * sign });
-    out.push({ lat: m2.lat - ny * amplitude * sign * 0.6, lng: m2.lng - nx * amplitude * sign * 0.6 });
+    out.push({
+      lat: m2.lat - ny * amplitude * sign * 0.6,
+      lng: m2.lng - nx * amplitude * sign * 0.6,
+    });
   }
   out.push(points[points.length - 1]!);
   return out;
@@ -134,7 +141,9 @@ function reasonLines(stops: Poi[]): { count: number; label: string }[] {
       label: "architecturally notable streets & squares",
       singular: "architecturally notable street",
       test: (p) =>
-        (p.category === "Historic Street" || p.category === "Square" || p.category === "Courtyards") &&
+        (p.category === "Historic Street" ||
+          p.category === "Square" ||
+          p.category === "Courtyards") &&
         p.scores.architecture >= 6,
     },
     {
@@ -145,7 +154,11 @@ function reasonLines(stops: Poi[]): { count: number; label: string }[] {
     {
       label: "riverside stretches",
       singular: "riverside stretch",
-      test: (p) => p.category === "Riverside" || p.category === "Island" || p.category === "Bridge" || p.category === "Canal",
+      test: (p) =>
+        p.category === "Riverside" ||
+        p.category === "Island" ||
+        p.category === "Bridge" ||
+        p.category === "Canal",
     },
     {
       label: "food streets & markets",
@@ -210,8 +223,7 @@ function makeRoute(
 ): ScenicRoute {
   const pace = opts.pace ?? "steady";
   const raw: LatLng[] = [from, ...stops, to];
-  const path =
-    profile === "fastest" ? weavePath(raw, 0.00035) : weavePath(raw, 0.0006);
+  const path = profile === "fastest" ? weavePath(raw, 0.00035) : weavePath(raw, 0.0006);
   const km = pathLengthKm(path) * (profile === "fastest" ? NETWORK_FACTOR : NETWORK_FACTOR * 1.02);
   const minutes = Math.round(minutesFor(km, pace) + stops.length * 0.7);
   const { percent, matched } = matchFor(stops, opts.interests);
@@ -238,10 +250,15 @@ function makeRoute(
     score: Math.round(stops.reduce((s, p) => s + baseAppeal(p), 0) * 10) / 10,
     reasons: reasonLines(stops),
     majorRoadReduction,
+    routingSource: "mock",
   };
 }
 
-export function buildRoutes(from: Place | LatLng, to: Place | LatLng, opts: BuildOptions): ScenicRoute[] {
+export function buildRoutes(
+  from: Place | LatLng,
+  to: Place | LatLng,
+  opts: BuildOptions,
+): ScenicRoute[] {
   const a: LatLng = { lat: from.lat, lng: from.lng };
   const b: LatLng = { lat: to.lat, lng: to.lng };
   const direct = distanceKm(a, b);
@@ -286,5 +303,9 @@ export function buildWander(
   const stops = selectStops(a, b, opts.interests, extraBudget, 8);
   const fastestMinutes = makeRoute("fastest", a, b, [], opts, 0).minutes;
   const route = makeRoute("explorer", a, b, stops, opts, fastestMinutes);
-  return { ...route, title: `${minutesAvailable}-Minute Wander`, blurb: "A wander that still gets you there on time." };
+  return {
+    ...route,
+    title: `${minutesAvailable}-Minute Wander`,
+    blurb: "A wander that still gets you there on time.",
+  };
 }
