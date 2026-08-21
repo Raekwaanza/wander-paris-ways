@@ -275,7 +275,8 @@ export function LegacyParisMap({
           </g>
         )}
         {userP && (
-          <g transform={`translate(${userP.x} ${userP.y})`}>
+          <g transform={`translate(${userP.x} ${userP.y})`} aria-label="Current location">
+            <title>Current location</title>
             <circle r={2.2} className="fill-terracotta" opacity={0.25} />
             <circle r={1.2} className="fill-terracotta stroke-card" strokeWidth={0.6} />
           </g>

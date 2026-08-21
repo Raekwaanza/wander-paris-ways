@@ -236,7 +236,7 @@ export function ParisMap(props: ParisMapProps) {
       };
       if (start) addMarker(start, makeMarkerElement("start", start.label ?? "Route start"));
       if (end) addMarker(end, makeMarkerElement("end", end.label ?? "Route destination"), "bottom");
-      if (user) addMarker(user, makeMarkerElement("user", "Current simulated location"));
+      if (user) addMarker(user, makeMarkerElement("user", "Current location"));
       discoveries.forEach((poi, index) => {
         const button = document.createElement("button");
         button.type = "button";
