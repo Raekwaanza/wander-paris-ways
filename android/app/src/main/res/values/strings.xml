@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Scenic Route</string>
+    <string name="title_activity_main">Scenic Route</string>
+    <string name="package_name">dev.scenicroute.paris</string>
+    <string name="custom_url_scheme">dev.scenicroute.paris</string>
+</resources>
