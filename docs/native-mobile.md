@@ -49,22 +49,15 @@ Capacitor 8 requires Node 22+. Bun remains the package manager.
 
 ### Scaffold generation status
 
-The foundation declares matching Capacitor 8 packages and configuration, but the initial Codex
-environment could not download npm packages: its registry proxy returned HTTP 403 for every
-Capacitor package (and existing packages such as Vitest and MapLibre). Consequently `bun.lock`
-could not be safely regenerated and the official `cap add ios` / `cap add android` generator could
-not be run. No native files were fabricated by hand. In a network-enabled checkout, run:
+The Capacitor 8 dependency graph is recorded in `bun.lock`. The `ios/` and `android/`
+trees were generated with the official Capacitor CLI and have been synced with the bundled assets
+from `mobile-dist/client`. The generated Android project retains Capacitor 8's
+`compileSdkVersion` and `targetSdkVersion` of 36.
 
-```sh
-bun install
-bunx cap add ios
-bunx cap add android
-bun run mobile:sync
-```
-
-Commit the resulting `bun.lock`, `ios/`, and `android/` trees. Confirm the generated Android
-`compileSdkVersion` and `targetSdkVersion` are 36 (the Capacitor 8 baseline) rather than downgrading
-them. This is the sole remaining scaffold blocker for this milestone.
+Scaffold generation and Capacitor sync do not constitute a native compile. Building the iOS app
+still requires macOS with Xcode and an explicitly selected Apple team/signing configuration.
+Building the Android app still requires a compatible JDK and Android SDK 36. Neither production
+signing setup belongs in this repository.
 
 ```sh
 bun install --frozen-lockfile
