@@ -1,0 +1,13 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "scenic-route",
+  "compatibility_date": "2026-08-22",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "preview_urls": false,
+  // Scenic Route's custom TanStack server entry preserves its SSR error handling.
+  "main": "src/server.ts",
+  "secrets": {
+    "required": ["OPENROUTESERVICE_API_KEY", "MAPTILER_API_KEY"],
+  },
+}

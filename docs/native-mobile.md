@@ -29,11 +29,12 @@ at the centralized platform boundary:
 - Candidate scoring, corridor analysis, selection, POIs, Wander planning, navigation, and route IDs
   remain shared domain code and are independent of the transport.
 
-The ordinary web build remains SSR/Nitro. Both Vite configurations compose official project
-plugins directly; the mobile configuration intentionally omits Nitro. `bun run mobile:build` uses
-`vite.mobile.config.ts` to prerender the SPA shell into `mobile-dist/client`. Capacitor copies only
-that client directory; `capacitor.config.ts` intentionally has no `server.url`, so native releases
-load their local bundle.
+The ordinary web build remains SSR and deploys directly as a Cloudflare Worker. Both Vite
+configurations compose official project plugins directly; the mobile configuration intentionally
+omits the Cloudflare plugin. `bun run mobile:build` uses `vite.mobile.config.ts` to prerender the SPA
+shell into `mobile-dist/client`. Capacitor copies only that client directory;
+`capacitor.config.ts` intentionally has no `server.url`, so native releases load their local
+bundle.
 
 ## Native API endpoints
 

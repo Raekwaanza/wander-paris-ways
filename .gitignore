@@ -13,7 +13,6 @@ dist-ssr
 .output
 .vinxi
 .tanstack/**
-.nitro
 mobile-dist
 *.local
 .env
@@ -26,7 +25,7 @@ blob-report/
 
 # Wrangler / Cloudflare
 .wrangler/
-.dev.vars
+.dev.vars*
 
 # Editor directories and files
 .vscode/*
