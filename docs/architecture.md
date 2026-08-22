@@ -2,6 +2,14 @@
 
 This document expands the implementation overview in [README.md](../README.md). It describes the current code rather than the historical product brief.
 
+## Build boundary
+
+`vite.config.ts` composes the official TanStack Start, React, Tailwind CSS, Nitro, and native Vite
+tsconfig-path handling directly. It builds the ordinary SSR application and keeps `src/server.ts` as the custom
+server entry. `vite.mobile.config.ts` uses the same application plugins without Nitro and enables
+TanStack Start's SPA prerendering for the dedicated Capacitor client bundle. No Lovable package is
+required by either build.
+
 ## Domain and service boundary
 
 Domain contracts live in [`src/lib/scenic/types.ts`](../src/lib/scenic/types.ts). UI routes and Scenic components assemble user flows, while [`services.ts`](../src/lib/scenic/services.ts) owns the provider-facing interfaces for geocoding, reverse geocoding, POIs, walking routing, Wander, and route analysis. React request lifecycle handling lives in [`use-services.ts`](../src/lib/scenic/use-services.ts).
