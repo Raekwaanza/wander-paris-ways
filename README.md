@@ -13,7 +13,7 @@ Scenic Route is not described here as production-ready, fully tested, or validat
 The current application lets a user:
 
 - choose seeded or MapTiler-searched Paris start and destination places;
-- use the browser's current location as either endpoint;
+- use the device's current foreground location as either endpoint;
 - select explicit interests, walking pace, units, and a `+10`, `+20`, or `+30` minute ordinary-route detour allowance;
 - compare Fastest, Scenic, and Explorer route profiles;
 - use **I have time to explore** (Wander) with a 10–120 minute total budget and a required destination;
@@ -129,7 +129,7 @@ API credentials never belong in client code or this README.
 
 ### MapTiler geocoding
 
-MapTiler supplies Paris-bounded forward location search and best-effort reverse label enrichment for a browser GPS fix. Seeded places remain a forward-search fallback when MapTiler is unavailable. Browser-provided GPS coordinates are authoritative: reverse geocoding may improve a label, but never moves the fix.
+MapTiler supplies Paris-bounded forward location search and best-effort reverse label enrichment for a device GPS fix. Seeded places remain a forward-search fallback when MapTiler is unavailable. Adapter-provided GPS coordinates are authoritative: reverse geocoding may improve a label, but never moves the fix.
 
 ### Map rendering
 
@@ -188,17 +188,17 @@ Saved routes intentionally preserve summaries, so this is not a claim that the a
 ## Location and Privacy
 
 - No account is required; application state is device-local.
-- A current precise browser fix is held in module memory for the current session.
+- A current precise location fix is held in module memory for the current session.
 - A current-location `TripPlan` stores a sentinel instead of precise coordinates.
 - `watchPosition` navigation fixes, off-route history, and skipped discoveries remain runtime-only and are not written to localStorage.
-- Reverse geocoding is best-effort label enrichment and does not replace browser coordinates.
+- Reverse geocoding is best-effort label enrichment and does not replace device coordinates.
 - A share created from Current location requires an explicit disclosure before static start/end coordinates are encoded into the link.
 
 These are implementation invariants, not a broad legal or regulatory compliance claim.
 
 ## Live Navigation
 
-Only provider-backed routes can start navigation. [`use-navigation-location.ts`](src/lib/scenic/use-navigation-location.ts) uses `navigator.geolocation.watchPosition`; a fix is usable only inside the supported Paris bounds and with reported accuracy at or below 100 metres. Poor fixes do not replace the last usable fix.
+Only provider-backed routes can start navigation. [`use-navigation-location.ts`](src/lib/scenic/use-navigation-location.ts) uses the centralized location provider; web delegates to `navigator.geolocation`, while Capacitor iOS and Android delegate to `@capacitor/geolocation`. A fix is usable only inside the supported Paris bounds and with reported accuracy at or below 100 metres. Poor fixes do not replace the last usable fix.
 
 ```mermaid
 flowchart LR
