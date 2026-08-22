@@ -18,6 +18,11 @@ import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as SavedRouteImport } from './routes/saved'
 import { Route as SharedRouteImport } from './routes/shared'
 import { Route as WanderRouteImport } from './routes/wander'
+import { Route as ApiV1GeocodingReverseRouteImport } from './routes/api/v1/geocoding/reverse'
+import { Route as ApiV1GeocodingSearchRouteImport } from './routes/api/v1/geocoding/search'
+import { Route as ApiV1RoutingMatrixRouteImport } from './routes/api/v1/routing/matrix'
+import { Route as ApiV1RoutingRoutesRouteImport } from './routes/api/v1/routing/routes'
+import { Route as ApiV1RoutingViaRouteImport } from './routes/api/v1/routing/via'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -64,6 +69,31 @@ const WanderRoute = WanderRouteImport.update({
   path: '/wander',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiV1GeocodingReverseRoute = ApiV1GeocodingReverseRouteImport.update({
+  id: '/api/v1/geocoding/reverse',
+  path: '/api/v1/geocoding/reverse',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiV1GeocodingSearchRoute = ApiV1GeocodingSearchRouteImport.update({
+  id: '/api/v1/geocoding/search',
+  path: '/api/v1/geocoding/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiV1RoutingMatrixRoute = ApiV1RoutingMatrixRouteImport.update({
+  id: '/api/v1/routing/matrix',
+  path: '/api/v1/routing/matrix',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiV1RoutingRoutesRoute = ApiV1RoutingRoutesRouteImport.update({
+  id: '/api/v1/routing/routes',
+  path: '/api/v1/routing/routes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiV1RoutingViaRoute = ApiV1RoutingViaRouteImport.update({
+  id: '/api/v1/routing/via',
+  path: '/api/v1/routing/via',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -75,6 +105,11 @@ export interface FileRoutesByFullPath {
   '/saved': typeof SavedRoute
   '/shared': typeof SharedRoute
   '/wander': typeof WanderRoute
+  '/api/v1/geocoding/reverse': typeof ApiV1GeocodingReverseRoute
+  '/api/v1/geocoding/search': typeof ApiV1GeocodingSearchRoute
+  '/api/v1/routing/matrix': typeof ApiV1RoutingMatrixRoute
+  '/api/v1/routing/routes': typeof ApiV1RoutingRoutesRoute
+  '/api/v1/routing/via': typeof ApiV1RoutingViaRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -86,6 +121,11 @@ export interface FileRoutesByTo {
   '/saved': typeof SavedRoute
   '/shared': typeof SharedRoute
   '/wander': typeof WanderRoute
+  '/api/v1/geocoding/reverse': typeof ApiV1GeocodingReverseRoute
+  '/api/v1/geocoding/search': typeof ApiV1GeocodingSearchRoute
+  '/api/v1/routing/matrix': typeof ApiV1RoutingMatrixRoute
+  '/api/v1/routing/routes': typeof ApiV1RoutingRoutesRoute
+  '/api/v1/routing/via': typeof ApiV1RoutingViaRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -98,6 +138,11 @@ export interface FileRoutesById {
   '/saved': typeof SavedRoute
   '/shared': typeof SharedRoute
   '/wander': typeof WanderRoute
+  '/api/v1/geocoding/reverse': typeof ApiV1GeocodingReverseRoute
+  '/api/v1/geocoding/search': typeof ApiV1GeocodingSearchRoute
+  '/api/v1/routing/matrix': typeof ApiV1RoutingMatrixRoute
+  '/api/v1/routing/routes': typeof ApiV1RoutingRoutesRoute
+  '/api/v1/routing/via': typeof ApiV1RoutingViaRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -111,6 +156,11 @@ export interface FileRouteTypes {
     | '/saved'
     | '/shared'
     | '/wander'
+    | '/api/v1/geocoding/reverse'
+    | '/api/v1/geocoding/search'
+    | '/api/v1/routing/matrix'
+    | '/api/v1/routing/routes'
+    | '/api/v1/routing/via'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -122,6 +172,11 @@ export interface FileRouteTypes {
     | '/saved'
     | '/shared'
     | '/wander'
+    | '/api/v1/geocoding/reverse'
+    | '/api/v1/geocoding/search'
+    | '/api/v1/routing/matrix'
+    | '/api/v1/routing/routes'
+    | '/api/v1/routing/via'
   id:
     | '__root__'
     | '/'
@@ -133,6 +188,11 @@ export interface FileRouteTypes {
     | '/saved'
     | '/shared'
     | '/wander'
+    | '/api/v1/geocoding/reverse'
+    | '/api/v1/geocoding/search'
+    | '/api/v1/routing/matrix'
+    | '/api/v1/routing/routes'
+    | '/api/v1/routing/via'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -145,6 +205,11 @@ export interface RootRouteChildren {
   SavedRoute: typeof SavedRoute
   SharedRoute: typeof SharedRoute
   WanderRoute: typeof WanderRoute
+  ApiV1GeocodingReverseRoute: typeof ApiV1GeocodingReverseRoute
+  ApiV1GeocodingSearchRoute: typeof ApiV1GeocodingSearchRoute
+  ApiV1RoutingMatrixRoute: typeof ApiV1RoutingMatrixRoute
+  ApiV1RoutingRoutesRoute: typeof ApiV1RoutingRoutesRoute
+  ApiV1RoutingViaRoute: typeof ApiV1RoutingViaRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -212,6 +277,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WanderRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/v1/geocoding/reverse': {
+      id: '/api/v1/geocoding/reverse'
+      path: '/api/v1/geocoding/reverse'
+      fullPath: '/api/v1/geocoding/reverse'
+      preLoaderRoute: typeof ApiV1GeocodingReverseRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/geocoding/search': {
+      id: '/api/v1/geocoding/search'
+      path: '/api/v1/geocoding/search'
+      fullPath: '/api/v1/geocoding/search'
+      preLoaderRoute: typeof ApiV1GeocodingSearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/routing/matrix': {
+      id: '/api/v1/routing/matrix'
+      path: '/api/v1/routing/matrix'
+      fullPath: '/api/v1/routing/matrix'
+      preLoaderRoute: typeof ApiV1RoutingMatrixRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/routing/routes': {
+      id: '/api/v1/routing/routes'
+      path: '/api/v1/routing/routes'
+      fullPath: '/api/v1/routing/routes'
+      preLoaderRoute: typeof ApiV1RoutingRoutesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/routing/via': {
+      id: '/api/v1/routing/via'
+      path: '/api/v1/routing/via'
+      fullPath: '/api/v1/routing/via'
+      preLoaderRoute: typeof ApiV1RoutingViaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -225,6 +325,11 @@ const rootRouteChildren: RootRouteChildren = {
   SavedRoute: SavedRoute,
   SharedRoute: SharedRoute,
   WanderRoute: WanderRoute,
+  ApiV1GeocodingReverseRoute: ApiV1GeocodingReverseRoute,
+  ApiV1GeocodingSearchRoute: ApiV1GeocodingSearchRoute,
+  ApiV1RoutingMatrixRoute: ApiV1RoutingMatrixRoute,
+  ApiV1RoutingRoutesRoute: ApiV1RoutingRoutesRoute,
+  ApiV1RoutingViaRoute: ApiV1RoutingViaRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

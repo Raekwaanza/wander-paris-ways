@@ -1,6 +1,6 @@
 import { services } from "./services";
 import type { Place } from "./types";
-import type { ReverseGeocodeResult } from "./reverse-geocoding.server";
+import type { ReverseGeocodeResult } from "./provider-contracts";
 import { isInParisMvpBounds } from "./paris-bounds";
 
 export { isInParisMvpBounds } from "./paris-bounds";

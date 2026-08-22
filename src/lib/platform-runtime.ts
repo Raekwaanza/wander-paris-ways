@@ -14,13 +14,19 @@ export function isNativeRuntime(): boolean {
 }
 
 /**
- * Public backend origin for future native HTTPS API routes. Provider keys must
+ * Public backend origin for native HTTPS API routes. Provider keys must
  * never be placed in this or any other VITE_* variable.
  */
 export function getScenicApiBaseUrl(): string | null {
-  const configured = import.meta.env.VITE_SCENIC_API_BASE_URL?.trim();
+  return normalizeScenicApiBaseUrl(import.meta.env["VITE_SCENIC_API_BASE_URL"]);
+}
+
+export function normalizeScenicApiBaseUrl(value: unknown): string | null {
+  const configured = typeof value === "string" ? value.trim() : "";
   if (!configured) return null;
   const url = new URL(configured);
-  if (url.protocol !== "https:") throw new Error("VITE_SCENIC_API_BASE_URL must use HTTPS");
+  if (url.protocol !== "https:" || url.pathname !== "/" || url.search || url.hash) {
+    throw new Error("VITE_SCENIC_API_BASE_URL must be an HTTPS origin");
+  }
   return url.origin;
 }
