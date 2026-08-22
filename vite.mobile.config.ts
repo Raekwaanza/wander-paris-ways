@@ -3,7 +3,7 @@ import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import viteReact from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
-// A separate SPA-shell build keeps web SSR/Nitro deployment unchanged. Only
+// A separate SPA-shell build stays independent from the web Cloudflare deployment. Only
 // mobile-dist/client is copied into Capacitor; mobile-dist/server is build-time
 // machinery and never enters the native application.
 export default defineConfig({

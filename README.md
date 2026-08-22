@@ -67,16 +67,16 @@ The deterministic server-side E2E fixture described under [Testing](#testing) is
 The native-distribution foundation and its security boundary are documented in
 [Native mobile foundation](docs/native-mobile.md).
 
-| Area                      | Current implementation                                         |
-| ------------------------- | -------------------------------------------------------------- |
-| Language and UI           | TypeScript, React 19                                           |
-| Application framework     | TanStack Router and TanStack Start                             |
-| Build and styling         | Vite 8, Tailwind CSS 4, direct official TanStack/Nitro plugins |
-| Map                       | MapLibre GL JS with the OpenFreeMap Liberty style by default   |
-| Package/runtime tooling   | Bun (with npm-compatible scripts also used in CI)              |
-| Unit tests                | Vitest, Node test environment                                  |
-| Walking routes and Matrix | OpenRouteService (`foot-walking`)                              |
-| Forward/reverse geocoding | MapTiler Geocoding API                                         |
+| Area                      | Current implementation                                       |
+| ------------------------- | ------------------------------------------------------------ |
+| Language and UI           | TypeScript, React 19                                         |
+| Application framework     | TanStack Router and TanStack Start                           |
+| Build and styling         | Vite 8, Tailwind CSS 4, Cloudflare Workers Vite integration  |
+| Map                       | MapLibre GL JS with the OpenFreeMap Liberty style by default |
+| Package/runtime tooling   | Bun (with npm-compatible scripts also used in CI)            |
+| Unit tests                | Vitest, Node test environment                                |
+| Walking routes and Matrix | OpenRouteService (`foot-walking`)                            |
+| Forward/reverse geocoding | MapTiler Geocoding API                                       |
 
 Radix UI primitives and local Scenic components provide the interface. The application does not currently integrate speculative POI providers such as Foursquare, Wikidata, OpenTripMap, Google Maps, or Overpass.
 
@@ -263,9 +263,10 @@ bun run dev
 
 On Windows, manually copy `.env.example` to `.env` if `cp` is inconvenient. Add only your own local credentials; do not commit `.env`.
 
-The Vite configurations use the official TanStack Start, React, Tailwind CSS, Nitro, and native
-Vite tsconfig-path integrations directly. The ordinary build remains an SSR/server build; the
-separate mobile configuration creates only the Capacitor SPA assets.
+The web Vite configuration uses the official Cloudflare Workers, TanStack Start, React, and
+Tailwind CSS integrations. It keeps `src/server.ts` as the custom Worker entry. The separate
+mobile configuration intentionally omits the Cloudflare plugin and creates only the Capacitor SPA
+assets. See [Cloudflare deployment](docs/deployment.md) for the production workflow.
 
 ### Environment variables
 

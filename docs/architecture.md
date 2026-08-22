@@ -4,11 +4,12 @@ This document expands the implementation overview in [README.md](../README.md). 
 
 ## Build boundary
 
-`vite.config.ts` composes the official TanStack Start, React, Tailwind CSS, Nitro, and native Vite
-tsconfig-path handling directly. It builds the ordinary SSR application and keeps `src/server.ts` as the custom
-server entry. `vite.mobile.config.ts` uses the same application plugins without Nitro and enables
-TanStack Start's SPA prerendering for the dedicated Capacitor client bundle. No Lovable package is
-required by either build.
+`vite.config.ts` composes the official Cloudflare Workers, TanStack Start, React, Tailwind CSS, and
+native Vite tsconfig-path integrations directly. It builds the SSR application for a direct
+Cloudflare Worker deployment and keeps `src/server.ts` as the custom server entry.
+`vite.mobile.config.ts` intentionally omits the Cloudflare plugin and enables TanStack Start's SPA
+prerendering for the dedicated Capacitor client bundle. No Lovable package is required by either
+build.
 
 ## Domain and service boundary
 

@@ -1,11 +1,12 @@
 import tailwindcss from "@tailwindcss/vite";
+import { cloudflare } from "@cloudflare/vite-plugin";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import viteReact from "@vitejs/plugin-react";
-import { nitro } from "nitro/vite";
 import { defineConfig } from "vite";
 
-export default defineConfig(({ command }) => ({
+export default defineConfig({
   plugins: [
+    cloudflare({ viteEnvironment: { name: "ssr" } }),
     tailwindcss(),
     tanstackStart({
       // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
@@ -18,8 +19,6 @@ export default defineConfig(({ command }) => ({
         },
       },
     }),
-    // Nitro packages the ordinary SSR application. The mobile config deliberately omits it.
-    command === "build" && nitro({ defaultPreset: "cloudflare-module" }),
     viteReact(),
   ],
   server: {
@@ -27,4 +26,4 @@ export default defineConfig(({ command }) => ({
     port: 8080,
   },
   resolve: { tsconfigPaths: true },
-}));
+});
