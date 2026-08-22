@@ -1,7 +1,9 @@
 import { isInParisMvpBounds } from "./paris-bounds";
+import type { LocationMeasurement, ScenicLocationOptions } from "./location-contracts";
+import { ScenicLocationError } from "./location-contracts";
 import type { LatLng } from "./types";
 
-export const NAVIGATION_LOCATION_OPTIONS: PositionOptions = {
+export const NAVIGATION_LOCATION_OPTIONS: ScenicLocationOptions = {
   enableHighAccuracy: true,
   timeout: 15_000,
   maximumAge: 5_000,
@@ -24,12 +26,13 @@ export type NavigationLocationStatus =
   | "outside-supported-area"
   | "unavailable";
 
-export function navigationFixFromPosition(position: GeolocationPosition): NavigationLocationFix {
-  const accuracy = position.coords.accuracy;
+export function navigationFixFromMeasurement(
+  measurement: LocationMeasurement,
+): NavigationLocationFix {
   return {
-    point: { lat: position.coords.latitude, lng: position.coords.longitude },
-    accuracyMeters: Number.isFinite(accuracy) ? accuracy : null,
-    timestamp: position.timestamp,
+    point: { lat: measurement.latitude, lng: measurement.longitude },
+    accuracyMeters: measurement.accuracyMeters,
+    timestamp: measurement.timestamp,
   };
 }
 
@@ -41,6 +44,8 @@ export function navigationFixStatus(fix: NavigationLocationFix): NavigationLocat
   return "tracking";
 }
 
-export function navigationErrorStatus(error: GeolocationPositionError): NavigationLocationStatus {
-  return error.code === error.PERMISSION_DENIED ? "permission-denied" : "unavailable";
+export function navigationErrorStatus(error: unknown): NavigationLocationStatus {
+  return error instanceof ScenicLocationError && error.code === "permission-denied"
+    ? "permission-denied"
+    : "unavailable";
 }

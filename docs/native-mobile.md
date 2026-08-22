@@ -1,8 +1,9 @@
 # Native mobile foundation and provider transport
 
 Scenic Route ships a dedicated Capacitor 8 SPA bundle while retaining the TanStack Start SSR web
-deployment. Native M2 adds the secure provider transport; it does not add geolocation plugins,
-background location, deep links, signing, store delivery, accounts, or payments.
+deployment. Native M2 added the secure provider transport; Native M3 adds foreground-only native
+geolocation. Background location, deep links, signing, store delivery, accounts, and payments
+remain out of scope.
 
 ## M2 architecture
 
@@ -103,6 +104,55 @@ Capacitor app → Scenic Route HTTPS API → shared server implementation → OR
 The server-function CSRF middleware in `src/start.ts` is unchanged and continues filtering
 TanStack server-function requests. M2 does not weaken it to accommodate Capacitor.
 
+## Foreground location architecture
+
+```mermaid
+flowchart TD
+  Consumers[Current location and navigation] --> Provider[Scenic location provider]
+  Provider --> WebGeo[Web adapter: navigator.geolocation]
+  Provider --> NativeGeo[Native adapter: Capacitor Geolocation]
+  NativeGeo --> IOS[iOS When In Use]
+  NativeGeo --> Android[Android coarse and fine foreground location]
+```
+
+The shared contract exposes only latitude, longitude, horizontal accuracy, and timestamp. Browser
+`GeolocationPosition` values and Capacitor plugin values are normalized at their adapters, so
+current-location and navigation code contain no platform-specific position objects.
+
+The web adapter preserves secure-context checks, high-accuracy intent, the existing timeout and
+maximum-age values, browser permission prompts, and browser error mapping. Normal web deployments
+do not require Capacitor.
+
+The native adapter uses `@capacitor/geolocation` for both one-shot position requests and foreground
+navigation watches. It checks permission before use, requests the plugin's `location` alias only
+when the status is promptable, accepts either precise or approximate grants, and does not repeatedly
+request after denial. Approximate fixes remain subject to Scenic Route's unchanged 100 metre usable
+accuracy threshold. Permission denial maps to the existing location-disabled UI; the message
+truthfully directs users to browser or system settings when permission is already off.
+
+Navigation watches exist only while a navigable route is mounted and the document is visible. A
+visibility change to hidden clears the browser/native watch; returning to the foreground starts a
+fresh permission check and watch. This is the smallest shared WebView resume boundary and must be
+confirmed on physical iOS and Android devices because WebView lifecycle delivery can vary.
+
+### Native permissions
+
+iOS declares both `NSLocationWhenInUseUsageDescription` and
+`NSLocationAlwaysAndWhenInUseUsageDescription` in `ios/App/App/Info.plist`, using the same product
+wording for route progress and nearby discoveries. Capacitor Geolocation's underlying iOS
+dependency requires both plist descriptions for compatibility; Scenic Route application logic
+still requests and uses foreground/When-In-Use location only. It does not enable a background
+location mode.
+
+Android declares only `ACCESS_COARSE_LOCATION` and `ACCESS_FINE_LOCATION` in
+`android/app/src/main/AndroidManifest.xml`. Runtime permission handling is delegated to the
+Capacitor plugin. There is no `ACCESS_BACKGROUND_LOCATION` or location foreground-service
+permission, and API 36 targeting remains unchanged.
+
+Precise one-shot fixes and continuous navigation fixes remain memory-only. GPS history is not added
+to localStorage, route feedback, analytics, API payloads, or the persisted current-location trip
+endpoint. Background location is not implemented.
+
 ## Requirements and workflow
 
 Capacitor 8 requires Node 22+. Bun remains the package manager.
@@ -125,19 +175,23 @@ Android compilation requires a compatible JDK, Android Studio 2025.2.1 or newer,
 
 ## Existing web capability compatibility
 
-| Capability                             | Current native foundation                 | Later work                                                                                                                                                               |
-| -------------------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `getCurrentPosition` / `watchPosition` | WebView APIs may work for smoke testing   | M3 should add one web/native location adapter with `@capacitor/geolocation`, permission UX, and foreground lifecycle handling. Background location remains out of scope. |
-| `navigator.share` / clipboard          | Existing best-effort web behavior remains | Add a centralized share adapter before native sharing changes.                                                                                                           |
-| `localStorage`                         | Retains device-local schema/versioning    | Reassess only if lifecycle or capacity evidence requires native storage.                                                                                                 |
-| Route-sharing fragments                | Parse inside the bundled WebView          | Universal Links/App Links and cold-start delivery require a later deep-link milestone.                                                                                   |
+| Capability                             | Current native foundation                                                      | Later work                                                                                                                                                                      |
+| -------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `getCurrentPosition` / `watchPosition` | Central web/native adapter uses browser or Capacitor Geolocation while visible | Physical-device validation is still required for permission denial, approximate/precise fixes, foreground resume, and walking accuracy. Background location is not implemented. |
+| `navigator.share` / clipboard          | Existing best-effort web behavior remains                                      | Add a centralized share adapter before native sharing changes.                                                                                                                  |
+| `localStorage`                         | Retains device-local schema/versioning                                         | Reassess only if lifecycle or capacity evidence requires native storage.                                                                                                        |
+| Route-sharing fragments                | Parse inside the bundled WebView                                               | Universal Links/App Links and cold-start delivery require a later deep-link milestone.                                                                                          |
 
 The root viewport continues to use `viewport-fit=cover`; existing safe-area variables remain the
 layout boundary for content near system bars.
 
-## Recommended Native M3 scope
+## Recommended M3.1 and Native M4 scope
 
-M3 should be limited to foreground native geolocation: add `@capacitor/geolocation`, centralize the
-web/native location adapter, add iOS purpose text and Android runtime permissions, and test denial,
-coarse versus precise accuracy, foreground resume, and real walking behavior on devices. Do not
-combine M3 with background location, deep linking, native sharing, signing, or store submission.
+Before M4, perform an M3.1 real native smoke test on Android from the supported Windows toolchain:
+compile and run the native shell, exercise native GPS and permissions, call a deployed M2 backend,
+obtain a real ORS route, render it in MapLibre, and verify foreground navigation on an emulator and
+physical device. Repeat the relevant permission, resume, and walking checks on iPhone when macOS
+and Xcode are available.
+
+After that proof, M4 can address native sharing and deep links as a separate milestone. Do not add
+background location to either scope.

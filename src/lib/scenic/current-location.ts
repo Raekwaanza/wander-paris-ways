@@ -2,13 +2,16 @@ import { services } from "./services";
 import type { Place } from "./types";
 import type { ReverseGeocodeResult } from "./provider-contracts";
 import { isInParisMvpBounds } from "./paris-bounds";
+import type { ScenicLocationOptions } from "./location-contracts";
+import { ScenicLocationError } from "./location-contracts";
+import { scenicLocationProvider } from "./location-provider";
 
 export { isInParisMvpBounds } from "./paris-bounds";
 
 /** Persistable sentinel for a fix whose coordinates deliberately remain in memory only. */
 export const LIVE_CURRENT_LOCATION_ID = "live-current-location";
 
-export const CURRENT_LOCATION_OPTIONS: PositionOptions = {
+export const CURRENT_LOCATION_OPTIONS: ScenicLocationOptions = {
   enableHighAccuracy: true,
   timeout: 10_000,
   maximumAge: 30_000,
@@ -31,7 +34,7 @@ export type CurrentLocationErrorCode =
   | "unexpected";
 
 const ERROR_MESSAGES: Record<CurrentLocationErrorCode, string> = {
-  unsupported: "Location isn't available in this browser. Enter a starting point instead.",
+  unsupported: "Location isn't available on this device. Enter a starting point instead.",
   "insecure-context": "Location requires a secure connection. Enter a starting point instead.",
   "permission-denied": "Location access is turned off. Choose a starting point instead.",
   "position-unavailable":
@@ -60,64 +63,52 @@ export function isLiveCurrentLocationId(id: string | null | undefined) {
   return id === LIVE_CURRENT_LOCATION_ID;
 }
 
-function normalizeError(error: GeolocationPositionError | unknown) {
-  if (typeof error === "object" && error !== null && "code" in error) {
-    const code = (error as GeolocationPositionError).code;
-    if (code === 1) return new CurrentLocationError("permission-denied");
-    if (code === 2) return new CurrentLocationError("position-unavailable");
-    if (code === 3) return new CurrentLocationError("timeout");
+function normalizeError(error: unknown) {
+  if (error instanceof ScenicLocationError && error.code in ERROR_MESSAGES) {
+    return new CurrentLocationError(error.code);
   }
   return new CurrentLocationError("unexpected");
 }
 
 export function requestCurrentLocation(): Promise<CurrentLocationFix> {
   if (pendingRequest) return pendingRequest;
-  if (typeof window === "undefined" || !("geolocation" in navigator)) {
-    return Promise.reject(new CurrentLocationError("unsupported"));
-  }
-  if (!window.isSecureContext) {
-    return Promise.reject(new CurrentLocationError("insecure-context"));
-  }
+  pendingRequest = scenicLocationProvider
+    .getCurrentPosition(CURRENT_LOCATION_OPTIONS)
+    .then(async (measurement) => {
+      const { latitude: lat, longitude: lng } = measurement;
+      if (!isInParisMvpBounds(lat, lng)) throw new CurrentLocationError("outside-paris");
+      const fix: CurrentLocationFix = {
+        place: {
+          id: LIVE_CURRENT_LOCATION_ID,
+          name: "Current location",
+          kind: "Live location",
+          area: "GPS position",
+          lat,
+          lng,
+        },
+        accuracy: measurement.accuracyMeters,
+        timestamp: measurement.timestamp,
+      };
+      currentFix = fix;
 
-  pendingRequest = new Promise<CurrentLocationFix>((resolve, reject) => {
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const { latitude: lat, longitude: lng, accuracy } = position.coords;
-        if (!isInParisMvpBounds(lat, lng)) {
-          reject(new CurrentLocationError("outside-paris"));
-          return;
-        }
-        const fix: CurrentLocationFix = {
-          place: {
-            id: LIVE_CURRENT_LOCATION_ID,
-            name: "Current location",
-            kind: "Live location",
-            area: "GPS position",
-            lat,
-            lng,
-          },
-          accuracy: Number.isFinite(accuracy) ? accuracy : null,
-          timestamp: position.timestamp,
-        };
-        currentFix = fix;
-
-        // The valid GPS fix is stored first. Label enrichment is deliberately
-        // best-effort and never changes its browser-supplied coordinates.
-        const reverseGeocode = await services.reverseGeocoding
-          .reverse({ lat, lng })
-          .catch(() => null);
-        if (reverseGeocode) {
-          fix.place = { ...fix.place, area: reverseGeocode.label };
-          fix.reverseGeocode = reverseGeocode;
-        }
-        resolve(fix);
-      },
-      (error) => reject(normalizeError(error)),
-      CURRENT_LOCATION_OPTIONS,
-    );
-  }).finally(() => {
-    pendingRequest = null;
-  });
+      // The valid GPS fix is stored first. Label enrichment is deliberately
+      // best-effort and never changes its adapter-supplied coordinates.
+      const reverseGeocode = await services.reverseGeocoding
+        .reverse({ lat, lng })
+        .catch(() => null);
+      if (reverseGeocode) {
+        fix.place = { ...fix.place, area: reverseGeocode.label };
+        fix.reverseGeocode = reverseGeocode;
+      }
+      return fix;
+    })
+    .catch((error) => {
+      if (error instanceof CurrentLocationError) throw error;
+      throw normalizeError(error);
+    })
+    .finally(() => {
+      pendingRequest = null;
+    });
 
   return pendingRequest;
 }

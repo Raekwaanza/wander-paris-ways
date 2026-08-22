@@ -83,13 +83,14 @@ Routing anchors are not automatically claimed as discoveries. Displayed discover
 
 Current-location endpoint acquisition and active navigation are distinct:
 
-- [`current-location.ts`](../src/lib/scenic/current-location.ts) performs a one-time high-accuracy `getCurrentPosition`, keeps the fix in module memory, and requests a best-effort reverse label.
+- [`location-provider.ts`](../src/lib/scenic/location-provider.ts) centrally selects browser geolocation on web or Capacitor Geolocation on iOS/Android and emits the same neutral measurement contract.
+- [`current-location.ts`](../src/lib/scenic/current-location.ts) performs a one-time high-accuracy request through that provider, keeps the fix in module memory, and requests a best-effort reverse label.
 - [`trip-endpoints.ts`](../src/lib/scenic/trip-endpoints.ts) converts that place into a persistable `live-current-location` sentinel.
-- [`use-navigation-location.ts`](../src/lib/scenic/use-navigation-location.ts) starts and clears `watchPosition` for live navigation. It never updates the persisted trip endpoint.
+- [`use-navigation-location.ts`](../src/lib/scenic/use-navigation-location.ts) starts and clears the selected foreground location watch for live navigation. It stops while the document is hidden, restarts on foreground resume, and never updates the persisted trip endpoint.
 
 ```mermaid
 flowchart TD
-  Watch[watchPosition] --> Quality[Paris bounds and accuracy check]
+  Watch[Web or native measurement] --> Quality[Paris bounds and accuracy check]
   Quality --> Project[nearestPointOnPath]
   Project --> Adherence[Adherence hysteresis]
   Adherence -->|on route| Stabilize[Suppress small backward jitter]
@@ -131,7 +132,7 @@ The result is `exact`, `changed`, or `unavailable`; input from an arbitrary URL 
 
 ## Maps and graceful fallback
 
-[`ParisMap.tsx`](../src/components/scenic/ParisMap.tsx) dynamically starts MapLibre using the configured public style. It renders paths as GeoJSON, browser location separately from route endpoints, and curated discovery markers. Startup failure, WebGL failure, or a timeout activates [`LegacyParisMap.tsx`](../src/components/scenic/LegacyParisMap.tsx). This map fallback is separate from a route Preview fallback: map rendering can fall back while the underlying route remains real.
+[`ParisMap.tsx`](../src/components/scenic/ParisMap.tsx) dynamically starts MapLibre using the configured public style. It renders paths as GeoJSON, the current device location separately from route endpoints, and curated discovery markers. Startup failure, WebGL failure, or a timeout activates [`LegacyParisMap.tsx`](../src/components/scenic/LegacyParisMap.tsx). This map fallback is separate from a route Preview fallback: map rendering can fall back while the underlying route remains real.
 
 ## Safety boundaries for future changes
 

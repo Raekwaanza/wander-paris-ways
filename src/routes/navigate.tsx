@@ -387,7 +387,7 @@ function NavigationLocationMessage({
       : status === "low-accuracy"
         ? "Improving location accuracy…"
         : status === "permission-denied"
-          ? "Location access is needed for live walking progress. You can still view the route."
+          ? "Location access is turned off. Enable it in browser or system settings for live progress."
           : status === "outside-supported-area"
             ? "Live walking progress is currently available within Paris."
             : "Your location is temporarily unavailable. You can still view the route.";
