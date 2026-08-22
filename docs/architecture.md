@@ -12,15 +12,22 @@ flowchart TD
   Pages --> Services[services.ts]
   Hooks --> Services
   Services --> Curated[Curated POI and analysis modules]
-  Services --> MapTiler[MapTiler server functions]
-  Services --> ORS[ORS directions and Matrix server functions]
+  Services --> Transport[Central provider transport]
+  Transport --> Web[TanStack server functions on web]
+  Transport --> Native[HTTPS /api/v1 on Capacitor]
+  Web --> Providers[Shared server-only provider implementations]
+  Native --> Providers
+  Providers --> MapTiler[MapTiler]
+  Providers --> ORS[ORS directions and Matrix]
 ```
 
-Credential-bearing HTTP requests must remain in server functions:
+Credential-bearing HTTP requests remain in shared server-only implementations. Thin TanStack
+server-function wrappers serve the browser, and narrow `/api/v1/*` route handlers invoke the same
+implementations for Capacitor clients:
 
-- [`maptiler-geocoding.server.ts`](../src/lib/scenic/maptiler-geocoding.server.ts) handles forward and reverse MapTiler requests. [`reverse-geocoding.server.ts`](../src/lib/scenic/reverse-geocoding.server.ts) provides the reverse-geocoding compatibility export.
-- [`openrouteservice-routing.server.ts`](../src/lib/scenic/openrouteservice-routing.server.ts) handles ordinary alternatives and fixed via routes.
-- [`openrouteservice-matrix.server.ts`](../src/lib/scenic/openrouteservice-matrix.server.ts) handles Wander duration matrices.
+- [`maptiler-geocoding.server.ts`](../src/lib/scenic/maptiler-geocoding.server.ts) wraps the forward and reverse MapTiler implementation. [`reverse-geocoding.server.ts`](../src/lib/scenic/reverse-geocoding.server.ts) provides the compatibility export.
+- [`openrouteservice-routing.server.ts`](../src/lib/scenic/openrouteservice-routing.server.ts) wraps ordinary alternatives and fixed via routes.
+- [`openrouteservice-matrix.server.ts`](../src/lib/scenic/openrouteservice-matrix.server.ts) wraps Wander duration matrices.
 - [`e2e-provider-fixtures.server.ts`](../src/lib/scenic/e2e-provider-fixtures.server.ts) supplies deterministic provider results only under the guarded server-side test flag.
 
 `VITE_SCENIC_DATA_MODE` currently configures the hybrid boundary rather than switching off keyed server operations. The hybrid set uses curated POIs, attempts MapTiler/ORS server calls when keys exist, and safely falls back when they do not. A complete `live` provider set is not implemented, so configured `live` mode warns and the service reports its active mode as `mock`.

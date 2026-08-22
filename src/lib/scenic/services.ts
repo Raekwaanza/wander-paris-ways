@@ -8,17 +8,15 @@
  * to `createScenicServices` below. No UI or routing-engine code needs to change.
  */
 import { applyPaceMultiplier, buildRoutes, buildWander, type BuildOptions } from "./routing";
-import {
-  routeViaOpenRouteService,
-  routeWithOpenRouteService,
-  type PedestrianRouteResponse,
-} from "./openrouteservice-routing.server";
-import { walkingDurationMatrix } from "./openrouteservice-matrix.server";
+import type {
+  ForwardGeocodeResult,
+  PedestrianRouteResponse,
+  ReverseGeocodeResult,
+} from "./provider-contracts";
+import { scenicProviderTransport } from "./provider-transport";
 import { PLACES, placeById, searchPlaces } from "./places";
 import { POIS, poiById } from "./pois";
 import { scenicConfig, type ScenicProviderMode } from "./config";
-import { reverseGeocodeWithMapTiler, type ReverseGeocodeResult } from "./reverse-geocoding.server";
-import { searchParisWithMapTiler, type ForwardGeocodeResult } from "./maptiler-geocoding.server";
 import { livePlaceById, registerLivePlaces } from "./live-places";
 import { analyzeRouteCorridor } from "./route-analysis";
 import { scoreCandidateCorridors } from "./route-scoring";
@@ -101,8 +99,9 @@ const hybridGeocoding: GeocodingService = {
     if (trimmed.length < 2) return seededSearch(trimmed);
     let result: ForwardGeocodeResult;
     try {
-      result = await searchParisWithMapTiler({
-        data: { query: trimmed, ...(proximity ? { proximity } : {}) },
+      result = await scenicProviderTransport.forwardGeocode({
+        query: trimmed,
+        ...(proximity ? { proximity } : {}),
       });
     } catch {
       result = { status: "unavailable", places: [] };
@@ -184,7 +183,7 @@ async function cachedOpenRouteServiceRoute(from: LatLng, to: LatLng) {
   const existing = routeResponseInFlight.get(key);
   if (existing) return existing;
 
-  const request = routeWithOpenRouteService({ data: { from, to } });
+  const request = scenicProviderTransport.route({ from, to });
   routeResponseInFlight.set(key, request);
   try {
     const response = await request;
@@ -344,9 +343,9 @@ const hybridRouting: RoutingService = {
     if (wander.fit === "targeted") {
       const waypoints = wander.waypointPoiIds.map((id) => mockPois.byId(id));
       if (waypoints.some((poi) => !poi)) return { status: "changed" };
-      const via = await routeViaOpenRouteService({
-        data: { points: [from, ...(waypoints as Poi[]), to] },
-      }).catch(() => null);
+      const via = await scenicProviderTransport
+        .routeVia({ points: [from, ...(waypoints as Poi[]), to] })
+        .catch(() => null);
       if (!via || via.status !== "success" || !via.candidates[0]) return { status: "unavailable" };
       const result = via.candidates[0];
       candidate = {
@@ -494,7 +493,7 @@ const hybridRouting: RoutingService = {
     if (anchors.length === 0) return directOnly();
     let matrix;
     try {
-      matrix = await walkingDurationMatrix({ data: { locations: [from, ...anchors, to] } });
+      matrix = await scenicProviderTransport.matrix({ locations: [from, ...anchors, to] });
     } catch {
       return directOnly();
     }
@@ -513,7 +512,7 @@ const hybridRouting: RoutingService = {
       const waypoints = sequence.poiIndexes.map((index) => anchors[index - 1]!);
       let response: PedestrianRouteResponse;
       try {
-        response = await routeViaOpenRouteService({ data: { points: [from, ...waypoints, to] } });
+        response = await scenicProviderTransport.routeVia({ points: [from, ...waypoints, to] });
       } catch {
         continue;
       }
@@ -573,7 +572,7 @@ const hybridRouting: RoutingService = {
 };
 
 const mapTilerReverseGeocoding: ReverseGeocodingService = {
-  reverse: (point) => reverseGeocodeWithMapTiler({ data: point }),
+  reverse: (point) => scenicProviderTransport.reverseGeocode(point),
 };
 
 interface ScenicServices {

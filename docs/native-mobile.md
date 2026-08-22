@@ -1,114 +1,143 @@
-# Native mobile foundation
+# Native mobile foundation and provider transport
 
-This milestone adds the build and runtime boundary for distributing Scenic Route in Capacitor 8.
-It does not claim store readiness, configure signing, or migrate web capabilities to plugins.
+Scenic Route ships a dedicated Capacitor 8 SPA bundle while retaining the TanStack Start SSR web
+deployment. Native M2 adds the secure provider transport; it does not add geolocation plugins,
+background location, deep links, signing, store delivery, accounts, or payments.
 
-## Shared architecture
+## M2 architecture
 
 ```mermaid
 flowchart LR
   Web[Web browser / SSR client] --> SF[TanStack same-origin server functions]
-  Bundle[Static mobile SPA bundle] --> Shell[Capacitor iOS / Android shell]
-  Shell -. future public HTTPS JSON requests .-> API[Explicit Scenic Route API routes]
+  Bundle[Static mobile SPA bundle] --> Shell[Capacitor iOS / Android]
+  Shell --> API[HTTPS JSON /api/v1 routes]
   SF --> Logic[Shared server-only provider implementations]
   API --> Logic
   Logic --> ORS[OpenRouteService]
   Logic --> MT[MapTiler]
 ```
 
-The normal `bun run build` remains the SSR/Nitro web deployment. `bun run mobile:build` uses
-`vite.mobile.config.ts` to enable TanStack Start SPA shell generation only for the mobile target.
-It emits an actual `index.html` and client assets in `mobile-dist/client`; the build-time server
-output in `mobile-dist/server` is not copied by Capacitor. The shell loads only the bundled client:
-`capacitor.config.ts` intentionally has no `server.url`.
+`src/lib/scenic/services.ts` consumes one `ScenicProviderTransport`. Runtime selection happens once
+at the centralized platform boundary:
 
-The current provider operations remain behind CSRF-protected, same-origin TanStack server
-functions. A Capacitor origin must **not** call those RPC endpoints by weakening CSRF. The next
-transport milestone should add narrow, versioned HTTPS API/server routes on the Scenic Route
-backend, with explicit origin/authentication/rate-limit policy. Those routes and the existing
-server functions should call shared server-only implementations extracted incrementally from the
-current `*.server.ts` adapters. This retains one scoring, POI analysis, selection, and Wander domain
-model. `VITE_SCENIC_API_BASE_URL` is the centralized public HTTPS origin for that future native
-transport; it is not enabled as a substitute `server.url`.
+- Web uses the existing TanStack server-function wrappers.
+- Capacitor iOS and Android use versioned HTTPS JSON endpoints on the deployed Scenic backend.
+- Both paths invoke the same server-only ORS and MapTiler implementations, preserving provider
+  timeouts, normalization, caching, route vertices, deterministic E2E fixtures, and unavailable
+  results.
+- Candidate scoring, corridor analysis, selection, POIs, Wander planning, navigation, and route IDs
+  remain shared domain code and are independent of the transport.
 
-## Security boundary
+The ordinary web build remains SSR/Nitro. `bun run mobile:build` uses `vite.mobile.config.ts` to
+prerender the SPA shell into `mobile-dist/client`. Capacitor copies only that client directory;
+`capacitor.config.ts` intentionally has no `server.url`, so native releases load their local bundle.
 
-`OPENROUTESERVICE_API_KEY` and `MAPTILER_API_KEY` are server-only. Never rename either with a
-`VITE_` prefix, put either in `VITE_SCENIC_API_BASE_URL`, native resources, Capacitor configuration,
-or the mobile bundle. Native requests will be native client → explicit Scenic Route HTTPS API →
-shared server-only provider implementation → ORS/MapTiler. Global server-function CSRF protection
-remains unchanged. Production traffic must use HTTPS and Capacitor cleartext traffic is disabled.
+## Native API endpoints
 
-The application ID `dev.scenicroute.paris` is **provisional for development** and is not claimed to
-be registered with Apple or Google. Replace `PROVISIONAL_APP_ID` in `capacitor.config.ts` after the
-production identifier is chosen and registered.
+The deployed TanStack Start backend exposes narrow JSON operations:
+
+| Endpoint                         | JSON body               | Controlled provider operation                  |
+| -------------------------------- | ----------------------- | ---------------------------------------------- |
+| `POST /api/v1/routing/routes`    | `{ from, to }`          | ORS pedestrian route plus bounded alternatives |
+| `POST /api/v1/routing/via`       | `{ points }`            | Fixed 2–4 point ORS Wander route               |
+| `POST /api/v1/routing/matrix`    | `{ locations }`         | ORS duration Matrix with 2–20 locations        |
+| `POST /api/v1/geocoding/search`  | `{ query, proximity? }` | Paris-bounded MapTiler search                  |
+| `POST /api/v1/geocoding/reverse` | `{ lat, lng }`          | MapTiler reverse label lookup                  |
+
+The endpoints accept JSON objects only, reject unexpected fields, limit bodies to 16 KiB, validate
+latitude/longitude and the supported Paris area, and bound query, waypoint, and Matrix sizes. They
+do not accept arbitrary provider URLs, profiles, upstream headers, MapTiler endpoints, or raw
+upstream bodies. Malformed requests receive `400`, blocked origins receive `403`, and provider
+unavailability receives a controlled `503` response instead of an uncontrolled exception.
+
+## Native transport behavior
+
+`VITE_SCENIC_API_BASE_URL` is public mobile build configuration. It must be exactly the public HTTPS
+origin of the Scenic Route backend: no path, query, fragment, provider key, or user information.
+Trailing slashes are normalized. The native transport uses bounded timeouts and treats all of the
+following as provider unavailability:
+
+- missing or invalid API base configuration;
+- offline/network and timeout failures;
+- non-2xx responses; and
+- non-JSON or malformed JSON responses.
+
+It never attempts same-origin TanStack server functions when native configuration is missing.
+Existing seeded geocoding, Preview route, and Wander direct/Preview behavior therefore remains the
+product fallback rather than an application crash.
+
+For a deployed mobile build, set the origin at build time and rebuild/sync:
+
+```sh
+VITE_SCENIC_API_BASE_URL=https://scenic-backend.example bun run mobile:sync
+```
+
+In PowerShell, set `$env:VITE_SCENIC_API_BASE_URL` before the command and remove it afterward. Do
+not point a production mobile build at localhost. For local device or simulator development, run
+the TanStack backend with the server-only provider keys, expose it through a trusted HTTPS origin
+reachable by the device, and build mobile assets with that origin. Plain HTTP is intentionally
+rejected.
+
+## CORS and security boundary
+
+CORS and `OPTIONS` handling apply only to `/api/v1/*`; there is no global CORS middleware. The
+default exact origin allowlist covers Capacitor's local WebViews:
+
+- `capacitor://localhost`
+- `https://localhost`
+- `http://localhost`
+
+A deployment can append exact origins with the server-only, comma-separated
+`SCENIC_NATIVE_ALLOWED_ORIGINS` variable. This must not be a `VITE_*` variable. Origin is only a
+browser-enforced control, not authentication: non-browser clients can imitate an allowed origin.
+No supposed secret is embedded in the iOS or Android binary.
+
+`OPENROUTESERVICE_API_KEY` and `MAPTILER_API_KEY` remain server-only. Never rename them with a
+`VITE_` prefix or put them in `VITE_SCENIC_API_BASE_URL`, Capacitor configuration, native resources,
+or the mobile bundle. Native provider traffic is always:
+
+```text
+Capacitor app → Scenic Route HTTPS API → shared server implementation → ORS / MapTiler
+```
+
+The server-function CSRF middleware in `src/start.ts` is unchanged and continues filtering
+TanStack server-function requests. M2 does not weaken it to accommodate Capacitor.
 
 ## Requirements and workflow
 
 Capacitor 8 requires Node 22+. Bun remains the package manager.
 
-### Scaffold generation status
-
-The Capacitor 8 dependency graph is recorded in `bun.lock`. The `ios/` and `android/`
-trees were generated with the official Capacitor CLI and have been synced with the bundled assets
-from `mobile-dist/client`. The generated Android project retains Capacitor 8's
-`compileSdkVersion` and `targetSdkVersion` of 36.
-
-Scaffold generation and Capacitor sync do not constitute a native compile. Building the iOS app
-still requires macOS with Xcode and an explicitly selected Apple team/signing configuration.
-Building the Android app still requires a compatible JDK and Android SDK 36. Neither production
-signing setup belongs in this repository.
-
 ```sh
 bun install --frozen-lockfile
+bun run test
+bun run build
 bun run mobile:build
-bun run mobile:sync            # build, then sync both installed platforms
-bun run mobile:sync:ios        # build, then sync iOS only
-bun run mobile:sync:android    # build, then sync Android only
-bun run mobile:open:ios
-bun run mobile:open:android
+bun run mobile:sync
 ```
 
-The iOS project requires macOS, Xcode 26 or newer, and Xcode Command Line Tools. Keep Capacitor 8's
-generated deployment baseline. A developer must later choose a real Apple team and signing setup;
-no fake team, certificate, or provisioning profile belongs in this repository.
+The Capacitor dependency graph is recorded in `bun.lock`. The `ios/` and `android/` projects were
+generated in Native M1 and are not regenerated by M2. The generated Android project retains
+Capacitor 8's compile and target SDK 36 configuration.
 
-The Android project requires Android Studio 2025.2.1 or newer and Android SDK 36. Capacitor 8's
-generated Android project targets Android 16/API 36 and can later produce an AAB through the normal
-Gradle release task. Play App Signing and a production keystore are intentionally deferred.
+Capacitor sync is not a native compile. iOS compilation requires macOS, Xcode 26 or newer, Xcode
+Command Line Tools, a registered bundle ID, and an explicitly selected Apple team/signing setup.
+Android compilation requires a compatible JDK, Android Studio 2025.2.1 or newer, and Android SDK 36. Play App Signing and production keystores stay outside source control.
 
-## Web capability compatibility audit
+## Existing web capability compatibility
 
-| Existing capability | Initial Capacitor status | Planned boundary/configuration |
-| --- | --- | --- |
-| `getCurrentPosition` | Web API can be retained for initial smoke testing | Move behind a location adapter using `@capacitor/geolocation`; add iOS privacy text and Android runtime permission handling. |
-| `watchPosition` | May work in a WebView but is not the release-grade path | Requires the geolocation plugin and later native permission/configuration work; background location remains out of scope. |
-| `navigator.share` | Web fallback is safe initially when available | Move behind a share adapter and native-capable plugin/API; retain clipboard fallback. |
-| Clipboard API | Safe best-effort fallback initially | Put behind the share adapter if WebView behavior proves inconsistent. |
-| `localStorage` | Safe to retain initially for device-local preferences and summaries | Preserve schema/versioning; assess native storage only if lifecycle or capacity needs change. |
-| `window.location` | Safe for local navigation and URL construction | Put external/deep-link behavior behind a platform adapter before deep linking. |
-| Route-sharing URL fragments | Parsing is safe in the bundled WebView | Universal Links/App Links and cold-start delivery require later deep-link configuration; the HTTPS backend/share URL remains canonical. |
+| Capability                             | Current native foundation                 | Later work                                                                                                                                                               |
+| -------------------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `getCurrentPosition` / `watchPosition` | WebView APIs may work for smoke testing   | M3 should add one web/native location adapter with `@capacitor/geolocation`, permission UX, and foreground lifecycle handling. Background location remains out of scope. |
+| `navigator.share` / clipboard          | Existing best-effort web behavior remains | Add a centralized share adapter before native sharing changes.                                                                                                           |
+| `localStorage`                         | Retains device-local schema/versioning    | Reassess only if lifecycle or capacity evidence requires native storage.                                                                                                 |
+| Route-sharing fragments                | Parse inside the bundled WebView          | Universal Links/App Links and cold-start delivery require a later deep-link milestone.                                                                                   |
 
-The root viewport continues to use `viewport-fit=cover`. Shared CSS variables expose all four safe
-area insets; bottom navigation already consumes the bottom inset. Layout-specific containers should
-use these variables only where content can meet a system bar, rather than adding global padding.
+The root viewport continues to use `viewport-fit=cover`; existing safe-area variables remain the
+layout boundary for content near system bars.
 
-## Still to do
+## Recommended Native M3 scope
 
-1. **Native geolocation:** add `@capacitor/geolocation`, create a web/native location adapter,
-   migrate current and watched fixes, add purpose strings and Android permissions, then test denial,
-   coarse/precise accuracy, foreground resume, and real walking behavior on devices.
-2. **Native sharing and deep links:** add a share adapter, choose the appropriate native plugin,
-   configure Universal Links and Android App Links, and test fragment delivery on cold/warm starts.
-3. Add production app icons and splash assets.
-4. Review iOS privacy strings and required privacy manifests.
-5. Review Android runtime permissions without adding background location.
-6. **TestFlight preparation:** on macOS, select the registered bundle ID and Apple team, configure
-   signing and versioning, complete privacy/icon review, archive in Xcode, validate, then upload to
-   App Store Connect for an internal TestFlight build.
-7. **Android internal testing:** register the final application ID, configure upload/Play App
-   Signing outside source control, run device/API 36 validation, generate and inspect a release AAB,
-   then upload it to the Play Console internal track.
-
-Signing, TestFlight, Play submission, payments, authentication, push notifications, and background
-location are explicitly outside this foundation milestone.
+M3 should be limited to foreground native geolocation: add `@capacitor/geolocation`, centralize the
+web/native location adapter, add iOS purpose text and Android runtime permissions, and test denial,
+coarse versus precise accuracy, foreground resume, and real walking behavior on devices. Do not
+combine M3 with background location, deep linking, native sharing, signing, or store submission.
