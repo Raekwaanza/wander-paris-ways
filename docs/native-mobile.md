@@ -188,13 +188,34 @@ Android compilation requires a compatible JDK, Android Studio 2025.2.1 or newer,
 The root viewport continues to use `viewport-fit=cover`; existing safe-area variables remain the
 layout boundary for content near system bars.
 
-## Recommended M3.1 and Native M4 scope
+## Native M3.2 Android backend validation
 
-Before M4, perform an M3.1 real native smoke test on Android from the supported Windows toolchain:
-compile and run the native shell, exercise native GPS and permissions, call a deployed M2 backend,
-obtain a real ORS route, render it in MapLibre, and verify foreground navigation on an emulator and
-physical device. Repeat the relevant permission, resume, and walking checks on iPhone when macOS
-and Xcode are available.
+On 2026-08-22, the debug application was rebuilt with JDK 21 and exercised on the existing Pixel 9
+Android API 36 emulator. Its Capacitor WebView used the `https://localhost` origin and the
+gitignored `.env.mobile.local` value for direct transport to
+`https://scenic-route.derrickhunt0.workers.dev`. Live MapTiler landmark, address, neighborhood, and
+reverse-geocoding requests succeeded through `/api/v1/geocoding/*`; live ORS route alternatives,
+Matrix, and via requests succeeded through `/api/v1/routing/*`. No native request went directly to
+MapTiler or ORS.
 
-After that proof, M4 can address native sharing and deep links as a separate milestone. Do not add
-background location to either scope.
+Fastest, Scenic, and Explorer rendered real pedestrian geometry in MapLibre with non-zero time and
+distance, truthful route rationale, and curated discoveries. A 60-minute Wander produced a live
+54-minute route after fixing Wander provider payloads to serialize coordinate-only waypoint
+objects. A development-only unreachable backend build launched safely, used seeded search
+suggestions, and presented route and Wander previews without same-origin server-function or direct
+provider fallback. The production Worker origin was restored and the APK rebuilt afterward.
+
+Simulated foreground GPS advanced an Explorer route from 0% to 50% to 100%, updated remaining
+distance/time and discovery sequencing, and preserved the route across background/foreground.
+Android removed the hidden location watch and registered one fresh watch on resume; no crash or
+duplicate active watch was observed. This was emulator/simulated-GPS validation, not physical
+walking validation. Permission behavior, lifecycle delivery, GPS accuracy, and walking behavior
+still require a physical Android device (and later iOS validation). Rate limiting remains the major
+infrastructure blocker before a broader external beta.
+
+## Recommended next native milestone
+
+Run the same permission, foreground-resume, route-progress, and walking checks on a physical
+Android device, then repeat them on iPhone when macOS and Xcode are available. After that field
+proof, M4 can address native sharing and deep links as a separate milestone. Do not add background
+location to either scope.

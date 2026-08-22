@@ -4,6 +4,7 @@ import {
   shortlistWanderAnchors,
   stableWanderId,
   wanderCandidateScore,
+  wanderProviderPoints,
 } from "./wander-routing";
 import { makeAnalysis, makeCandidate, makePoi } from "./test-fixtures";
 
@@ -46,6 +47,16 @@ describe("Wander pure routing", () => {
       makePoi(String(index).padStart(2, "0"), { lat: 48.851, lng: 2.35 }),
     );
     expect(shortlistWanderAnchors(from, to, many, 30, [])).toHaveLength(16);
+  });
+
+  it("serializes Wander provider points as coordinate-only inputs", () => {
+    expect(wanderProviderPoints(from, anchors, to)).toEqual([
+      from,
+      { lat: anchors[0]!.lat, lng: anchors[0]!.lng },
+      { lat: anchors[1]!.lat, lng: anchors[1]!.lng },
+      to,
+    ]);
+    expect(Object.keys(wanderProviderPoints(from, anchors, to)[1]!)).toEqual(["lat", "lng"]);
   });
 
   it("accepts one-anchor routes within budget and rejects over-budget routes despite learning", () => {

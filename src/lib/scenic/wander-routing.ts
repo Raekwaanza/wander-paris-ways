@@ -33,6 +33,11 @@ export interface WanderSequence {
   anchorQuality: number;
 }
 
+/** Keep provider payloads on the LatLng contract instead of serializing full POI records. */
+export function wanderProviderPoints(from: LatLng, anchors: Poi[], to: LatLng): LatLng[] {
+  return [from, ...anchors.map(({ lat, lng }) => ({ lat, lng })), to];
+}
+
 function preferenceStrength(
   poi: Poi,
   options: {

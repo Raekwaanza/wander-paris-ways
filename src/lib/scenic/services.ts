@@ -29,6 +29,7 @@ import {
   shortlistWanderAnchors,
   WANDER_V1,
   wanderCandidateScore,
+  wanderProviderPoints,
   stableWanderId,
 } from "./wander-routing";
 import type { SharedRoutePayloadV1, SharedRouteResolution } from "./shared-route";
@@ -493,7 +494,9 @@ const hybridRouting: RoutingService = {
     if (anchors.length === 0) return directOnly();
     let matrix;
     try {
-      matrix = await scenicProviderTransport.matrix({ locations: [from, ...anchors, to] });
+      matrix = await scenicProviderTransport.matrix({
+        locations: wanderProviderPoints(from, anchors, to),
+      });
     } catch {
       return directOnly();
     }
@@ -512,7 +515,9 @@ const hybridRouting: RoutingService = {
       const waypoints = sequence.poiIndexes.map((index) => anchors[index - 1]!);
       let response: PedestrianRouteResponse;
       try {
-        response = await scenicProviderTransport.routeVia({ points: [from, ...waypoints, to] });
+        response = await scenicProviderTransport.routeVia({
+          points: wanderProviderPoints(from, waypoints, to),
+        });
       } catch {
         continue;
       }
