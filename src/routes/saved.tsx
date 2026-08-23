@@ -7,6 +7,7 @@ import { DiscoveryDetail } from "@/components/scenic/DiscoveryDetail";
 import { useSavedDiscoveries, useSavedRoutes } from "@/lib/scenic/store";
 import { services } from "@/lib/scenic/services";
 import type { Poi } from "@/lib/scenic/types";
+import { DiscoveryChapters } from "@/components/scenic/DiscoveryChapters";
 
 export const Route = createFileRoute("/saved")({
   head: () => ({
@@ -36,7 +37,8 @@ function SavedPage() {
         panel={
           <div className="space-y-6 px-5 pt-5 pb-6">
             <div>
-              <h1 className="text-display text-2xl">Saved</h1>
+              <p className="text-eyebrow text-primary">Your collection</p>
+              <h1 className="mt-1 text-2xl font-semibold tracking-tight">Saved</h1>
               <p className="mt-1 text-sm text-muted-foreground">
                 Kept on this device. Nothing leaves your phone.
               </p>
@@ -44,9 +46,9 @@ function SavedPage() {
 
             <section>
               <h2 className="text-eyebrow text-muted-foreground">Routes</h2>
-              <div className="mt-2 space-y-2">
+              <div className="mt-2 divide-y divide-border border-y border-border">
                 {savedRoutes.map((r) => (
-                  <div key={r.id} className="surface-card p-4">
+                  <article key={r.id} className="py-4">
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <p className="text-display text-base">
@@ -71,10 +73,10 @@ function SavedPage() {
                     {r.tags.length > 0 && (
                       <p className="mt-1.5 text-xs text-muted-foreground">{r.tags.join(" · ")}</p>
                     )}
-                  </div>
+                  </article>
                 ))}
                 {savedRoutes.length === 0 && (
-                  <div className="rounded-2xl border border-dashed border-border p-6 text-center">
+                  <div className="border border-dashed border-border p-6 text-center">
                     <Bookmark className="mx-auto size-5 text-muted-foreground" strokeWidth={1.5} />
                     <p className="mt-2 text-sm text-muted-foreground">
                       No saved walks yet. Save one at the end of a route.
@@ -92,18 +94,8 @@ function SavedPage() {
 
             <section>
               <h2 className="text-eyebrow text-muted-foreground">Discoveries</h2>
-              <div className="mt-2 space-y-2">
-                {pois.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => setDetail(p)}
-                    className="flex w-full flex-col rounded-xl border border-border bg-card px-3.5 py-3 text-left hover:bg-secondary"
-                  >
-                    <span className="text-sm font-medium">{p.name}</span>
-                    <span className="text-xs text-muted-foreground">{p.kicker}</span>
-                  </button>
-                ))}
+              <div className="mt-2">
+                <DiscoveryChapters discoveries={pois} onSelect={setDetail} />
                 {pois.length === 0 && (
                   <p className="text-sm text-muted-foreground">
                     Save a place from any discovery card and it lands here.

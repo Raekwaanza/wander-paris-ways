@@ -10,6 +10,8 @@ import {
   type SharedRouteResolution,
 } from "@/lib/scenic/shared-route";
 import type { Place } from "@/lib/scenic/types";
+import { Button } from "@/components/ui/button";
+import { DiscoveryChapters } from "@/components/scenic/DiscoveryChapters";
 
 export const Route = createFileRoute("/shared")({
   head: () => ({
@@ -113,7 +115,7 @@ function SharedRoutePage() {
               Reconstructed from the pedestrian network.
             </p>
           </div>
-          <dl className="grid grid-cols-3 gap-2">
+          <dl className="grid grid-cols-3 divide-x divide-border border-y border-border">
             <Metric value={`${route.minutes} min`} label="current time" />
             <Metric value={`${route.km} km`} label="current distance" />
             <Metric value={`+${route.extraMinutes} min`} label="extra time" />
@@ -121,14 +123,7 @@ function SharedRoutePage() {
           {route.discoveries.length > 0 && (
             <div>
               <h2 className="text-sm font-medium">Curated discoveries</h2>
-              <ul className="mt-2 space-y-2">
-                {route.discoveries.map((poi) => (
-                  <li key={poi.id} className="rounded-xl border border-border bg-card p-3">
-                    <p className="text-sm font-medium">{poi.name}</p>
-                    <p className="text-xs text-muted-foreground">{poi.kicker}</p>
-                  </li>
-                ))}
-              </ul>
+              <DiscoveryChapters className="mt-2" discoveries={route.discoveries} />
             </div>
           )}
           <PlanLink />
@@ -140,7 +135,7 @@ function SharedRoutePage() {
 
 function Metric({ value, label }: { value: string; label: string }) {
   return (
-    <div className="rounded-2xl border border-border bg-secondary/50 p-3">
+    <div className="px-3 py-4 first:pl-0 last:pr-0">
       <dt className="font-semibold tabular-nums">{value}</dt>
       <dd className="text-xs text-muted-foreground">{label}</dd>
     </div>
@@ -166,7 +161,7 @@ function Summary({
       <p className="text-sm font-medium">
         {payload.from.name} → {payload.to.name}
       </p>
-      <dl className="grid grid-cols-2 gap-2">
+      <dl className="grid grid-cols-2 divide-x divide-border border-y border-border">
         <Metric value={`${payload.expected.minutes} min`} label="original estimate" />
         <Metric value={`${payload.expected.km} km`} label="original distance" />
       </dl>
@@ -177,12 +172,9 @@ function Summary({
 
 function PlanLink() {
   return (
-    <Link
-      to="/explore"
-      className="flex min-h-12 items-center justify-center rounded-2xl bg-primary px-4 text-sm font-medium text-primary-foreground"
-    >
-      Plan your own walk
-    </Link>
+    <Button asChild size="lg" className="w-full">
+      <Link to="/explore">Plan your own walk</Link>
+    </Button>
   );
 }
 

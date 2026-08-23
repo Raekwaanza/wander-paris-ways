@@ -35,6 +35,7 @@ import {
   placeDiscoveriesAlongRoute,
   selectNavigationDiscovery,
 } from "@/lib/scenic/navigation-discoveries";
+import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/navigate")({
   validateSearch: (s: Record<string, unknown>) => ({
@@ -214,18 +215,17 @@ function NavigatePage() {
           <div className="space-y-4 px-5 pt-8 pb-6">
             <div>
               <p className="text-eyebrow text-muted-foreground">Route preview</p>
-              <h1 className="text-display mt-1 text-2xl">This route is preview-only</h1>
+              <h1 className="mt-1 text-2xl font-semibold tracking-tight">
+                This route is preview-only
+              </h1>
               <p className="mt-2 text-sm text-muted-foreground">
                 Real pedestrian routing isn't available for this route right now, so walking
                 directions are disabled.
               </p>
             </div>
-            <Link
-              to="/plan"
-              className="flex min-h-13 w-full items-center justify-center rounded-2xl bg-primary px-4 py-3.5 text-sm font-medium text-primary-foreground shadow-lift hover:opacity-90"
-            >
-              Back to routes
-            </Link>
+            <Button asChild size="lg" className="w-full shadow-lift">
+              <Link to="/plan">Back to routes</Link>
+            </Button>
           </div>
         }
       />
@@ -320,7 +320,7 @@ function NavigatePage() {
 
             {navigationLocation.status === "tracking" && routeAdherence.status === "off-route" && (
               <div
-                className="surface-card border border-amber-500/30 bg-amber-50/80 p-4 dark:bg-amber-950/20"
+                className="surface-card border border-primary/40 bg-secondary/80 p-4"
                 aria-live="polite"
                 role="status"
               >
@@ -352,19 +352,21 @@ function NavigatePage() {
 
             <WhyThisRoute route={route} />
 
-            <button
+            <Button
               type="button"
+              size="lg"
+              variant="outline"
               onClick={() =>
                 navigate({
                   to: "/complete",
                   search: { profile, routeId: route.id, completion: "manual" },
                 })
               }
-              className="flex min-h-13 w-full items-center justify-center gap-2 rounded-2xl border border-border bg-card py-3.5 text-sm font-medium hover:bg-secondary"
+              className="w-full"
             >
               <Flag className="size-4" strokeWidth={1.75} />
               Finish route
-            </button>
+            </Button>
           </div>
         }
       />

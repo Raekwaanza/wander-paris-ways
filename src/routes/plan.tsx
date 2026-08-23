@@ -15,6 +15,8 @@ import type { Poi, RouteProfile } from "@/lib/scenic/types";
 import { LocationRecovery } from "@/components/scenic/LocationRecovery";
 import { resolveTripEndpoint, resolvedPlace } from "@/lib/scenic/trip-endpoints";
 import { isNetworkNavigableRoute } from "@/lib/scenic/navigation";
+import { Button } from "@/components/ui/button";
+import { DiscoveryChapters } from "@/components/scenic/DiscoveryChapters";
 
 export const Route = createFileRoute("/plan")({
   head: () => ({
@@ -125,12 +127,12 @@ function PlanPage() {
           <div className="space-y-4 px-5 pt-4 pb-6">
             <div>
               <p className="text-eyebrow text-muted-foreground">Walking</p>
-              <h1 className="text-display text-xl">
+              <h1 className="text-xl font-semibold tracking-tight">
                 {from.name} → {to.name}
               </h1>
             </div>
 
-            <div className="space-y-2.5">
+            <div className="overflow-hidden rounded-lg border border-border bg-card shadow-card">
               {routes.map((r) => (
                 <RouteCard
                   key={r.profile}
@@ -143,7 +145,7 @@ function PlanPage() {
             </div>
 
             {noWorthwhileDetour ? (
-              <div className="rounded-2xl border border-border bg-secondary/60 p-4">
+              <div className="border-y border-border bg-secondary/40 py-4">
                 <p className="text-sm font-medium">
                   {emptyDiscoveryRouteIsReal
                     ? "No curated discoveries were identified near this route."
@@ -162,40 +164,25 @@ function PlanPage() {
             {active.discoveries.length > 0 && (
               <div>
                 <h2 className="text-eyebrow text-muted-foreground">Near this route</h2>
-                <ul className="mt-2 space-y-1.5">
-                  {active.discoveries.map((d, i) => (
-                    <li key={d.id}>
-                      <button
-                        type="button"
-                        onClick={() => setDetail(d)}
-                        className="flex w-full items-center gap-3 rounded-xl border border-border bg-card px-3 py-2.5 text-left hover:bg-secondary"
-                      >
-                        <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-semibold tabular-nums">
-                          {i + 1}
-                        </span>
-                        <span className="min-w-0">
-                          <span className="block truncate text-sm font-medium">{d.name}</span>
-                          <span className="block truncate text-xs text-muted-foreground">
-                            {d.kicker}
-                          </span>
-                        </span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+                <DiscoveryChapters
+                  className="mt-2"
+                  discoveries={active.discoveries}
+                  onSelect={setDetail}
+                />
               </div>
             )}
 
             <div>
-              <button
+              <Button
                 type="button"
+                size="lg"
                 disabled={!navigationReady}
                 onClick={() => navigate({ to: "/navigate", search: { profile: selected } })}
-                className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-base font-medium text-primary-foreground shadow-lift transition-opacity enabled:hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                className="h-14 w-full text-base shadow-lift"
               >
                 {navigationReady ? `Take ${active.title} Route` : "Preview only"}
                 {navigationReady && <ArrowRight className="size-4" strokeWidth={2} />}
-              </button>
+              </Button>
               {!navigationReady && (
                 <p className="mt-2 text-center text-sm text-muted-foreground">
                   This option is currently available only as a preview.

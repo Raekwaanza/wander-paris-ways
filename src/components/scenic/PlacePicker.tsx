@@ -81,10 +81,10 @@ export function PlacePicker({ open, onOpenChange, title, onPick, showCurrentLoca
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md gap-0 overflow-hidden rounded-3xl p-0">
+      <DialogContent className="max-w-md gap-0 overflow-hidden p-0">
         <DialogHeader className="border-b border-border px-5 pt-5 pb-4">
-          <DialogTitle className="text-display text-lg">{title}</DialogTitle>
-          <div className="mt-3 flex items-center gap-2 rounded-xl border border-border bg-secondary px-3">
+          <DialogTitle className="text-lg font-semibold">{title}</DialogTitle>
+          <div className="mt-3 flex items-center gap-2 rounded-lg border border-border bg-secondary px-3 focus-within:border-primary">
             <Search className="size-4 shrink-0 text-muted-foreground" strokeWidth={1.75} />
             <input
               autoFocus
@@ -108,7 +108,7 @@ export function PlacePicker({ open, onOpenChange, title, onPick, showCurrentLoca
               onClick={useCurrentLocation}
               disabled={locationPending}
               aria-busy={locationPending}
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left hover:bg-secondary disabled:cursor-wait disabled:opacity-70"
+              className="flex w-full items-center gap-3 border-b border-border px-3 py-3 text-left hover:bg-secondary disabled:cursor-wait disabled:opacity-70"
             >
               <span className="flex size-9 items-center justify-center rounded-full bg-accent text-accent-foreground">
                 <LocateFixed className="size-4" strokeWidth={1.75} />
@@ -133,7 +133,7 @@ export function PlacePicker({ open, onOpenChange, title, onPick, showCurrentLoca
               key={p.id}
               type="button"
               onClick={() => pick(p)}
-              className="flex w-full items-center justify-between gap-3 rounded-xl px-3 py-3 text-left hover:bg-secondary"
+              className="flex w-full items-center justify-between gap-3 border-b border-border px-3 py-3 text-left last:border-b-0 hover:bg-secondary"
             >
               <span>
                 <span className="block text-sm font-medium">{p.name}</span>

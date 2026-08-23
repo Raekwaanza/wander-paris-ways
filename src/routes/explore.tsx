@@ -21,6 +21,7 @@ import {
   resolvedPlace,
   tripEndpointFromPlace,
 } from "@/lib/scenic/trip-endpoints";
+import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/explore")({
   head: () => ({
@@ -117,13 +118,15 @@ function Explore() {
         panel={
           <div className="space-y-5 px-5 pt-5 pb-6">
             <div>
-              <h1 className="text-display text-2xl">Where are you going?</h1>
+              <p className="text-eyebrow text-primary">Plan a walk</p>
+              <h1 className="mt-1 text-2xl font-semibold tracking-tight">Where are you going?</h1>
               <p className="mt-1 text-sm text-muted-foreground">
                 There's usually a more interesting way there.
               </p>
             </div>
 
-            <div className="overflow-hidden rounded-2xl border border-border">
+            <div className="relative overflow-hidden rounded-lg border border-border bg-card shadow-card">
+              <span className="absolute top-7 bottom-7 left-[1.45rem] z-10 border-l border-dashed border-border" />
               <button
                 type="button"
                 onClick={() => setPicker("from")}
@@ -167,14 +170,15 @@ function Explore() {
               </button>
             </div>
 
-            <button
+            <Button
               type="button"
+              size="lg"
               onClick={find}
-              className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-base font-medium text-primary-foreground shadow-lift transition-opacity hover:opacity-90"
+              className="h-14 w-full text-base shadow-lift"
             >
               Find my route
               <ArrowRight className="size-4" strokeWidth={2} />
-            </button>
+            </Button>
 
             <Link
               to="/wander"
@@ -206,7 +210,7 @@ function Explore() {
             </div>
 
             {showPrivacy && (
-              <div className="rounded-2xl border border-border bg-secondary/60 p-4">
+              <aside className="border-t border-border pt-4">
                 <div className="flex items-start gap-2">
                   <Info className="mt-0.5 size-4 shrink-0 text-primary" strokeWidth={1.75} />
                   <div>
@@ -216,25 +220,26 @@ function Explore() {
                       isn't saved unless you choose to save a route.
                     </p>
                     <div className="mt-3 flex flex-wrap gap-2">
-                      <button
+                      <Button
                         type="button"
+                        size="sm"
                         onClick={useCurrentLocation}
                         disabled={locationPending}
                         aria-busy={locationPending}
-                        className="min-h-10 rounded-full bg-primary px-4 text-sm font-medium text-primary-foreground disabled:cursor-wait disabled:opacity-70"
                       >
                         {locationPending ? "Finding your location…" : "Use my location"}
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         type="button"
+                        size="sm"
+                        variant="ghost"
                         onClick={() => {
                           setShowPrivacy(false);
                           setPicker("from");
                         }}
-                        className="min-h-10 rounded-full border border-border bg-card px-4 text-sm font-medium"
                       >
                         Enter location manually
-                      </button>
+                      </Button>
                     </div>
                     {locationError && (
                       <p role="alert" className="mt-2 text-xs leading-relaxed text-destructive">
@@ -243,7 +248,7 @@ function Explore() {
                     )}
                   </div>
                 </div>
-              </div>
+              </aside>
             )}
           </div>
         }

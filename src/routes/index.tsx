@@ -10,6 +10,7 @@ import { usePreferences, useRouteFeedback, useTrip } from "@/lib/scenic/store";
 import { deriveLearnedPreferenceSnapshot } from "@/lib/scenic/preference-learning";
 import type { Place } from "@/lib/scenic/types";
 import { tripEndpointFromPlace } from "@/lib/scenic/trip-endpoints";
+import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -62,7 +63,7 @@ function Landing() {
 
   return (
     <main className="relative min-h-[100dvh] overflow-hidden">
-      <div className="absolute inset-0 opacity-[0.55]">
+      <div className="absolute inset-0 opacity-[0.42]">
         <ParisMap
           routes={demoRoutes ? [{ route: demoRoutes[1]!, active: true }] : []}
           discoveries={demoRoutes?.[1]?.discoveries ?? []}
@@ -70,10 +71,11 @@ function Landing() {
           padding={10}
         />
       </div>
-      <div className="absolute inset-0 bg-gradient-to-b from-background/70 via-background/85 to-background" />
+      <div className="absolute inset-0 bg-gradient-to-b from-background/55 via-background/82 to-background" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_65%_18%,transparent_0%,var(--background)_76%)] opacity-70" />
 
       <div className="relative mx-auto flex min-h-[100dvh] w-full max-w-xl flex-col px-6 pt-14 pb-10">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 border-b border-border/70 pb-5">
           <span className="flex size-7 items-center justify-center rounded-full bg-primary text-primary-foreground">
             <MapPin className="size-4" strokeWidth={2} />
           </span>
@@ -84,15 +86,15 @@ function Landing() {
           <h1 className="text-display text-[2.6rem] leading-[1.05] text-balance sm:text-6xl">
             Take the interesting way there.
           </h1>
-          <p className="mt-4 max-w-md text-base leading-relaxed text-muted-foreground">
+          <p className="mt-5 max-w-md border-l-2 border-primary pl-4 text-base leading-relaxed text-muted-foreground">
             Scenic Route turns everyday walks across Paris into personalised city discovery.
           </p>
 
-          <div className="mt-8 space-y-3">
+          <div className="mt-8 space-y-3 border-t border-border/70 pt-6">
             <button
               type="button"
               onClick={() => setPickerOpen(true)}
-              className="flex min-h-14 w-full items-center justify-between gap-3 rounded-2xl border border-border bg-card px-4 text-left shadow-card"
+              className="flex min-h-16 w-full items-center justify-between gap-3 rounded-lg border border-border bg-card/95 px-4 text-left shadow-card backdrop-blur transition-colors hover:bg-secondary"
             >
               <span>
                 <span className="block text-[11px] tracking-wide text-muted-foreground uppercase">
@@ -105,13 +107,14 @@ function Landing() {
               <ArrowRight className="size-4 shrink-0 text-muted-foreground" strokeWidth={1.75} />
             </button>
 
-            <button
+            <Button
               type="button"
+              size="lg"
               onClick={() => go(destination)}
-              className="min-h-14 w-full rounded-2xl bg-primary px-4 text-base font-medium text-primary-foreground shadow-lift transition-opacity hover:opacity-90"
+              className="h-14 w-full text-base shadow-lift"
             >
               Find a scenic route
-            </button>
+            </Button>
           </div>
 
           <p className="mt-4 text-sm text-muted-foreground">

@@ -15,7 +15,7 @@ export function BottomNav() {
           <li key={to} className="flex-1">
             <Link
               to={to}
-              className="group flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl text-muted-foreground transition-colors data-[status=active]:text-primary"
+              className="group flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg text-muted-foreground transition-colors data-[status=active]:text-primary"
             >
               <Icon className="size-[22px]" strokeWidth={1.75} />
               <span className="text-[11px] font-medium tracking-wide">{label}</span>

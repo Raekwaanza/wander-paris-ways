@@ -30,9 +30,9 @@ export function WhyThisRoute({ route }: { route: ScenicRoute }) {
     );
   }
   return (
-    <div className="rounded-2xl border border-border bg-secondary/60 p-4">
-      <p className="text-eyebrow text-muted-foreground">Why this route?</p>
-      <p className="mt-2 text-sm">
+    <section className="border-y border-border py-4">
+      <p className="text-eyebrow text-primary">Why this route?</p>
+      <p className="text-display mt-2 text-lg leading-snug">
         {!isReal ? (
           <>This is a concept preview using estimated route geometry and curated discovery data.</>
         ) : route.profile === "fastest" ? (
@@ -65,7 +65,7 @@ export function WhyThisRoute({ route }: { route: ScenicRoute }) {
           </>
         )}
       </p>
-      <ul className="mt-2 space-y-1.5">
+      <ul className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 border-t border-border pt-3">
         {route.reasons.map((r) => (
           <li key={r.label} className="flex gap-2 text-sm text-muted-foreground">
             <span className="font-semibold text-foreground tabular-nums">{r.count}</span>
@@ -73,7 +73,7 @@ export function WhyThisRoute({ route }: { route: ScenicRoute }) {
           </li>
         ))}
       </ul>
-      <p className="mt-3 text-xs text-muted-foreground">
+      <p className="mt-3 border-t border-border pt-3 text-xs text-muted-foreground">
         {route.matchedInterests.length > 0 ? (
           <>
             Matches your interests:{" "}
@@ -89,6 +89,6 @@ export function WhyThisRoute({ route }: { route: ScenicRoute }) {
           </>
         )}
       </p>
-    </div>
+    </section>
   );
 }
