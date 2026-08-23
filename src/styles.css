@@ -6,19 +6,19 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Scenic Route design system.
- * Warm cream paper, charcoal ink, deep forest accent, muted terracotta.
- * All colors in oklch. Never hardcode colors in components.
+ * Scenic Route design system: Montmartre After Dark.
+ * Editorial urban exploration with functional navigation.
+ * Raw brand colors feed semantic tokens; components should consume semantics.
  */
 
 @theme inline {
-  --radius-sm: calc(var(--radius) - 6px);
-  --radius-md: calc(var(--radius) - 3px);
+  --radius-sm: calc(var(--radius) - 5px);
+  --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 6px);
-  --radius-2xl: calc(var(--radius) + 12px);
-  --radius-3xl: calc(var(--radius) + 20px);
-  --radius-4xl: calc(var(--radius) + 28px);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 14px);
+  --radius-4xl: calc(var(--radius) + 22px);
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -40,13 +40,16 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-ring-offset-background: var(--background);
+  --color-selected-border: var(--selected-border);
 
+  /* Compatibility aliases used by existing screens until M5.2B. */
   --color-terracotta: var(--terracotta);
   --color-terracotta-foreground: var(--terracotta-foreground);
   --color-sage: var(--sage);
   --color-paper: var(--paper);
   --color-ink: var(--ink);
 
+  /* Existing cartographic tokens remain unchanged until M5.2C. */
   --color-map-land: var(--map-land);
   --color-map-block: var(--map-block);
   --color-map-street: var(--map-street);
@@ -56,93 +59,174 @@
   --font-sans: var(--font-body);
   --font-serif: var(--font-display);
 
-  --shadow-sheet: 0 -12px 40px -12px oklch(0.25 0.03 60 / 0.18);
-  --shadow-card: 0 2px 10px -4px oklch(0.3 0.03 60 / 0.16);
-  --shadow-lift: 0 14px 40px -18px oklch(0.3 0.04 60 / 0.4);
+  --shadow-sheet: var(--shadow-sheet-value);
+  --shadow-card: var(--shadow-card-value);
+  --shadow-lift: var(--shadow-lift-value);
 }
 
 :root {
+  color-scheme: dark;
   --safe-area-top: env(safe-area-inset-top, 0px);
   --safe-area-right: env(safe-area-inset-right, 0px);
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);
   --safe-area-left: env(safe-area-inset-left, 0px);
-  --radius: 1rem;
-  --font-body: "Inter Tight", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-display: "Fraunces", "Iowan Old Style", Georgia, ui-serif, serif;
 
-  --background: oklch(0.973 0.011 84);
-  --foreground: oklch(0.245 0.014 65);
-  --paper: oklch(0.988 0.007 90);
-  --ink: oklch(0.245 0.014 65);
+  --radius: 0.6875rem;
+  --radius-control: 0.5625rem;
+  --radius-card: 0.875rem;
+  --radius-sheet: 1.25rem;
+  --radius-pill: 999px;
 
-  --card: oklch(0.99 0.006 90);
-  --card-foreground: oklch(0.245 0.014 65);
-  --popover: oklch(0.99 0.006 90);
-  --popover-foreground: oklch(0.245 0.014 65);
+  --font-body: "Sen", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Cormorant Garamond", "Iowan Old Style", Georgia, ui-serif, serif;
 
-  --primary: oklch(0.375 0.052 155);
-  --primary-foreground: oklch(0.978 0.012 90);
+  --motion-fast: 140ms;
+  --motion-standard: 220ms;
+  --motion-editorial: 400ms;
+  --ease-composed: cubic-bezier(0.22, 1, 0.36, 1);
 
-  --secondary: oklch(0.935 0.014 84);
-  --secondary-foreground: oklch(0.32 0.018 65);
+  /* Core Night brand palette. */
+  --brand-deep-navy: #0d1420;
+  --brand-charcoal: #1a1f26;
+  --brand-slate: #2b3e52;
+  --brand-forest: #4a5a44;
+  --brand-stone: #d6d2c4;
+  --brand-gold: #c27a2c;
 
-  --muted: oklch(0.941 0.012 84);
-  --muted-foreground: oklch(0.525 0.016 70);
+  /* Day brand palette. */
+  --brand-warm-paper: #eee8dc;
+  --brand-pale-stone: #d8d0c1;
+  --brand-deep-sky: #4d6f8f;
+  --brand-sage: #6b7f6a;
+  --brand-ink: #0e1a27;
+  --brand-day-terracotta: #c56a3d;
 
-  --accent: oklch(0.902 0.031 145);
-  --accent-foreground: oklch(0.33 0.05 155);
+  /* Expressive accents are contextual, not a general-purpose rainbow. */
+  --brand-midnight-ink: #161821;
+  --brand-neon-rouge: #f0445a;
+  --brand-electric-violet: #8e5de7;
+  --brand-barlight-amber: #f4a340;
+  --brand-champagne-mist: #f3e6d4;
+  --brand-electric-sky: #168bd2;
+  --brand-forest-walk: #347a4a;
+  --brand-fresh-leaf: #73b96b;
+  --brand-river-turquoise: #2aa9b8;
+  --brand-sunflower: #f5c542;
+  --brand-terracotta: #df684b;
+  --brand-warm-sand: #f0dfc2;
+  --brand-deep-ink: #163044;
 
-  --terracotta: oklch(0.545 0.115 38);
-  --terracotta-foreground: oklch(0.98 0.01 90);
-  --sage: oklch(0.68 0.043 150);
+  /* Night semantic system (default). */
+  --background: var(--brand-deep-navy);
+  --foreground: var(--brand-stone);
+  --paper: var(--brand-charcoal);
+  --ink: var(--brand-stone);
+  --card: var(--brand-charcoal);
+  --card-foreground: var(--brand-stone);
+  --popover: #202832;
+  --popover-foreground: var(--brand-stone);
+  --primary: var(--brand-gold);
+  --primary-foreground: var(--brand-deep-navy);
+  --secondary: var(--brand-slate);
+  --secondary-foreground: var(--brand-stone);
+  --muted: #17212d;
+  --muted-foreground: #a6a79f;
+  --accent: var(--brand-forest);
+  --accent-foreground: var(--brand-champagne-mist);
+  --destructive: var(--brand-neon-rouge);
+  --destructive-foreground: var(--brand-deep-navy);
+  --border: #354657;
+  --input: #60758a;
+  --ring: var(--brand-gold);
+  --selected-border: var(--brand-gold);
 
-  --destructive: oklch(0.52 0.15 27);
-  --destructive-foreground: oklch(0.98 0.01 90);
+  --terracotta: var(--brand-terracotta);
+  --terracotta-foreground: var(--brand-deep-navy);
+  --sage: var(--brand-forest);
 
-  --border: oklch(0.895 0.014 82);
-  --input: oklch(0.895 0.014 82);
-  --ring: oklch(0.375 0.052 155);
+  --shadow-card-value: 0 3px 10px -6px rgb(0 0 0 / 0.62);
+  --shadow-sheet-value: 0 -10px 28px -18px rgb(0 0 0 / 0.78);
+  --shadow-lift-value: 0 8px 20px -14px rgb(0 0 0 / 0.72);
 
+  /* Reserved for M5.2C. Defining these does not alter MapLibre rendering. */
+  --route-scenic: var(--brand-gold);
+  --route-fastest: #718399;
+  --route-explorer: var(--brand-day-terracotta);
+  --route-preview: #7f8790;
+
+  /* Current map paint values are intentionally preserved for the map milestone. */
   --map-land: oklch(0.955 0.014 85);
   --map-block: oklch(0.925 0.014 82);
   --map-street: oklch(0.88 0.013 80);
   --map-water: oklch(0.876 0.032 220);
   --map-park: oklch(0.9 0.045 145);
-  /* Canvas map paint values mirror the Scenic tokens in a MapLibre-compatible format. */
   --map-route-primary: #315844;
   --map-route-muted: #77736b;
 }
 
 .dark {
-  --background: oklch(0.21 0.012 70);
-  --foreground: oklch(0.955 0.01 85);
-  --paper: oklch(0.25 0.013 70);
-  --ink: oklch(0.955 0.01 85);
-  --card: oklch(0.253 0.013 70);
-  --card-foreground: oklch(0.955 0.01 85);
-  --popover: oklch(0.253 0.013 70);
-  --popover-foreground: oklch(0.955 0.01 85);
-  --primary: oklch(0.72 0.07 152);
-  --primary-foreground: oklch(0.2 0.02 155);
-  --secondary: oklch(0.3 0.014 70);
-  --secondary-foreground: oklch(0.95 0.01 85);
-  --muted: oklch(0.3 0.014 70);
-  --muted-foreground: oklch(0.72 0.012 80);
-  --accent: oklch(0.34 0.03 150);
-  --accent-foreground: oklch(0.92 0.03 150);
-  --terracotta: oklch(0.66 0.11 40);
-  --terracotta-foreground: oklch(0.2 0.02 40);
-  --sage: oklch(0.7 0.04 150);
-  --border: oklch(0.33 0.012 70);
-  --input: oklch(0.33 0.012 70);
-  --ring: oklch(0.72 0.07 152);
-  --map-land: oklch(0.26 0.012 70);
-  --map-block: oklch(0.3 0.012 70);
-  --map-street: oklch(0.36 0.012 70);
-  --map-water: oklch(0.35 0.03 230);
-  --map-park: oklch(0.34 0.035 150);
-  --map-route-primary: #79aa8c;
-  --map-route-muted: #aaa59b;
+  color-scheme: dark;
+  --background: var(--brand-deep-navy);
+  --foreground: var(--brand-stone);
+  --paper: var(--brand-charcoal);
+  --ink: var(--brand-stone);
+  --card: var(--brand-charcoal);
+  --card-foreground: var(--brand-stone);
+  --popover: #202832;
+  --popover-foreground: var(--brand-stone);
+  --primary: var(--brand-gold);
+  --primary-foreground: var(--brand-deep-navy);
+  --secondary: var(--brand-slate);
+  --secondary-foreground: var(--brand-stone);
+  --muted: #17212d;
+  --muted-foreground: #a6a79f;
+  --accent: var(--brand-forest);
+  --accent-foreground: var(--brand-champagne-mist);
+  --destructive: var(--brand-neon-rouge);
+  --destructive-foreground: var(--brand-deep-navy);
+  --border: #354657;
+  --input: #60758a;
+  --ring: var(--brand-gold);
+  --selected-border: var(--brand-gold);
+  --terracotta: var(--brand-terracotta);
+  --terracotta-foreground: var(--brand-deep-navy);
+  --sage: var(--brand-forest);
+  --shadow-card-value: 0 3px 10px -6px rgb(0 0 0 / 0.62);
+  --shadow-sheet-value: 0 -10px 28px -18px rgb(0 0 0 / 0.78);
+  --shadow-lift-value: 0 8px 20px -14px rgb(0 0 0 / 0.72);
+}
+
+[data-theme="day"],
+.light {
+  color-scheme: light;
+  --background: var(--brand-warm-paper);
+  --foreground: var(--brand-ink);
+  --paper: #f7f1e7;
+  --ink: var(--brand-ink);
+  --card: #f7f1e7;
+  --card-foreground: var(--brand-ink);
+  --popover: #fbf6ed;
+  --popover-foreground: var(--brand-ink);
+  --primary: var(--brand-gold);
+  --primary-foreground: var(--brand-deep-navy);
+  --secondary: var(--brand-pale-stone);
+  --secondary-foreground: var(--brand-ink);
+  --muted: #e1d9cc;
+  --muted-foreground: #596674;
+  --accent: #c7d2c4;
+  --accent-foreground: #203025;
+  --destructive: #b83f50;
+  --destructive-foreground: #fff8ef;
+  --border: #aea596;
+  --input: #6b7782;
+  --ring: var(--brand-deep-sky);
+  --selected-border: #9a5b16;
+  --terracotta: var(--brand-day-terracotta);
+  --terracotta-foreground: var(--brand-ink);
+  --sage: var(--brand-sage);
+  --shadow-card-value: 0 3px 10px -7px rgb(14 26 39 / 0.32);
+  --shadow-sheet-value: 0 -10px 26px -18px rgb(14 26 39 / 0.4);
+  --shadow-lift-value: 0 8px 18px -14px rgb(14 26 39 / 0.4);
 }
 
 @layer base {
@@ -152,6 +236,7 @@
 
   html {
     -webkit-text-size-adjust: 100%;
+    background-color: var(--color-background);
   }
 
   body {
@@ -163,31 +248,47 @@
     overscroll-behavior-y: none;
   }
 
-  h1,
-  h2,
-  h3 {
-    font-family: var(--font-display);
-    letter-spacing: -0.015em;
+  :where(a, button, input, textarea, select, [tabindex]):focus-visible {
+    outline: 2px solid var(--ring) !important;
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    color: var(--primary-foreground);
+    background: var(--primary);
   }
 }
 
 @utility text-display {
   font-family: var(--font-display);
-  letter-spacing: -0.02em;
-  font-weight: 500;
+  font-weight: 600;
+  letter-spacing: -0.018em;
+}
+
+@utility text-title {
+  font-family: var(--font-body);
+  font-weight: 600;
+  letter-spacing: -0.012em;
+}
+
+@utility text-metric {
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 @utility text-eyebrow {
+  font-family: var(--font-body);
   font-size: 0.6875rem;
-  letter-spacing: 0.14em;
+  font-weight: 600;
+  letter-spacing: 0.13em;
   text-transform: uppercase;
-  font-weight: 500;
 }
 
 @utility surface-card {
   background-color: var(--color-card);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-xl);
+  border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
 }
 
@@ -200,7 +301,7 @@
 
 @keyframes sheet-up {
   from {
-    transform: translateY(18px);
+    transform: translateY(14px);
     opacity: 0;
   }
   to {
@@ -210,7 +311,7 @@
 }
 
 @utility animate-sheet-up {
-  animation: sheet-up 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: sheet-up var(--motion-editorial) var(--ease-composed) both;
 }
 
 @keyframes route-draw {
@@ -231,6 +332,17 @@
   50% {
     opacity: 0.1;
     transform: scale(1.9);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
 

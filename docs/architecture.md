@@ -11,6 +11,12 @@ Cloudflare Worker deployment and keeps `src/server.ts` as the custom server entr
 prerendering for the dedicated Capacitor client bundle. No Lovable package is required by either
 build.
 
+The Tailwind CSS 4 visual-token architecture is centralized in `src/styles.css`: raw Scenic brand
+primitives map to semantic UI tokens consumed by shared components and screens. Night is the
+default, with an optional scoped Day foundation. See the canonical
+[Scenic Route design system](design-system.md); cartographic styling remains a separate map-layer
+concern.
+
 ## Domain and service boundary
 
 Domain contracts live in [`src/lib/scenic/types.ts`](../src/lib/scenic/types.ts). UI routes and Scenic components assemble user flows, while [`services.ts`](../src/lib/scenic/services.ts) owns the provider-facing interfaces for geocoding, reverse geocoding, POIs, walking routing, Wander, and route analysis. React request lifecycle handling lives in [`use-services.ts`](../src/lib/scenic/use-services.ts).
