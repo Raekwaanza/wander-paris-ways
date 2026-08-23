@@ -7,6 +7,7 @@ import {
 import { walkingDurationMatrixImplementation } from "@/lib/scenic/openrouteservice-matrix-implementation.server";
 
 const post = createNativeApiPostHandler(
+  "matrix",
   validateNativeMatrixInput,
   walkingDurationMatrixImplementation,
 );

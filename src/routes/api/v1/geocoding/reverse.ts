@@ -7,6 +7,7 @@ import {
 import { reverseGeocodeWithMapTilerImplementation } from "@/lib/scenic/maptiler-geocoding-implementation.server";
 
 const post = createNativeApiPostHandler(
+  "geocoding",
   validateNativeReverseGeocodeInput,
   reverseGeocodeWithMapTilerImplementation,
 );

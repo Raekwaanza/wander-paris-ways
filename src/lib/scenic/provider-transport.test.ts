@@ -90,4 +90,26 @@ describe("native Scenic API transport", () => {
       }),
     ).resolves.toEqual({ status: "unavailable" });
   });
+
+  it("maps rate-limited responses to existing native fallback semantics", async () => {
+    const rateLimited = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(
+        Response.json(
+          { error: "rate_limited", retryAfterSeconds: 60 },
+          { status: 429, headers: { "Retry-After": "60" } },
+        ),
+      );
+    const transport = createNativeScenicProviderTransport(
+      "https://api.scenic.example",
+      rateLimited,
+    );
+
+    await expect(
+      transport.route({
+        from: { lat: 48.8566, lng: 2.3522 },
+        to: { lat: 48.86, lng: 2.36 },
+      }),
+    ).resolves.toEqual({ status: "unavailable" });
+  });
 });
