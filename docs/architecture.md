@@ -39,6 +39,31 @@ implementations for Capacitor clients:
 - [`openrouteservice-matrix.server.ts`](../src/lib/scenic/openrouteservice-matrix.server.ts) wraps Wander duration matrices.
 - [`e2e-provider-fixtures.server.ts`](../src/lib/scenic/e2e-provider-fixtures.server.ts) supplies deterministic provider results only under the guarded server-side test flag.
 
+### Native API abuse-control boundary
+
+[`native-api.server.ts`](../src/lib/scenic/native-api.server.ts) centralizes the native endpoint
+pipeline. After exact-origin validation, every POST runs the global burst and sustained Cloudflare
+Rate Limiting bindings followed by exactly one `geocoding`, `routing`, or `matrix` class binding.
+Only an allowed request proceeds to bounded JSON reading, contract validation, and the shared
+provider implementation. Preflight bypasses rate limiting, while binding failure fails closed
+before provider execution.
+
+```mermaid
+flowchart LR
+  Origin[Origin policy] --> Burst[Global burst]
+  Burst --> Sustained[Global sustained]
+  Sustained --> Class[One operation class]
+  Class --> Body[Bounded JSON]
+  Body --> Validate[Contract validation]
+  Validate --> Provider[Shared provider implementation]
+```
+
+The server-only Cloudflare adapter reads `CF-Connecting-IP` as a coarse counter key and uses one
+deterministic local fallback. It never exposes or persists that value. The native bundle contains
+no limiter credential or persistent device identifier. A rejection preserves CORS and returns a
+non-cacheable `429` with a retry window; native transport maps that non-success response to the
+existing controlled unavailable/Preview semantics.
+
 `VITE_SCENIC_DATA_MODE` currently configures the hybrid boundary rather than switching off keyed server operations. The hybrid set uses curated POIs, attempts MapTiler/ORS server calls when keys exist, and safely falls back when they do not. A complete `live` provider set is not implemented, so configured `live` mode warns and the service reports its active mode as `mock`.
 
 ## Ordinary route generation

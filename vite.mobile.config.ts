@@ -27,6 +27,11 @@ export default defineConfig({
     viteReact(),
   ],
   base: "./",
-  build: { outDir: "mobile-dist" },
+  build: {
+    outDir: "mobile-dist",
+    // The SPA prerender executes server route modules at build time, but this virtual module
+    // exists only in the deployed Worker runtime. Capacitor copies only mobile-dist/client.
+    rolldownOptions: { external: ["cloudflare:workers"] },
+  },
   resolve: { tsconfigPaths: true },
 });

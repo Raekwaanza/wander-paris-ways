@@ -7,6 +7,7 @@ import {
 import { routeViaOpenRouteServiceImplementation } from "@/lib/scenic/openrouteservice-routing-implementation.server";
 
 const post = createNativeApiPostHandler(
+  "routing",
   validateNativeViaInput,
   routeViaOpenRouteServiceImplementation,
 );

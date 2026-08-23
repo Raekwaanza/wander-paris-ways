@@ -54,6 +54,13 @@ do not accept arbitrary provider URLs, profiles, upstream headers, MapTiler endp
 upstream bodies. Malformed requests receive `400`, blocked origins receive `403`, and provider
 unavailability receives a controlled `503` response instead of an uncontrolled exception.
 
+Allowed POSTs also pass through Cloudflare's native Rate Limiting bindings before body parsing:
+30 requests per 10 seconds globally, 120 per 60 seconds globally, then 60 geocoding, 30 routing, or
+12 Matrix requests per 60 seconds. A rejected call receives non-cacheable `429` JSON and the native
+transport applies its existing unavailable fallback. Binding failure returns controlled `503`
+without provider execution. This introduces no app credential, account, persistent device ID, or
+fingerprint; the server uses a coarse connecting-IP counter that can group clients behind NAT.
+
 ## Native transport behavior
 
 `VITE_SCENIC_API_BASE_URL` is public mobile build configuration. It must be exactly the public HTTPS
@@ -178,12 +185,12 @@ Android compilation requires a compatible JDK, Android Studio 2025.2.1 or newer,
 
 ## Existing web capability compatibility
 
-| Capability                             | Current native foundation                                                      | Later work                                                                                                                                                                      |
-| -------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `getCurrentPosition` / `watchPosition` | Central web/native adapter uses browser or Capacitor Geolocation while visible | Physical-device validation is still required for permission denial, approximate/precise fixes, foreground resume, and walking accuracy. Background location is not implemented. |
-| `navigator.share` / clipboard          | Central adapter preserves Web Share, clipboard, and manual-copy fallback; iOS/Android use Capacitor Share | Validate the native share sheet on each physical-device release candidate.                                                                                       |
-| `localStorage`                         | Retains device-local schema/versioning                                         | Reassess only if lifecycle or capacity evidence requires native storage.                                                                                                        |
-| Route-sharing fragments                | One strict adapter handles cold/warm native links and reuses `/shared`         | Universal Links/App Links remain deferred until identifiers, signing, and domain association are final.                                                                         |
+| Capability                             | Current native foundation                                                                                 | Later work                                                                                                                                                                      |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `getCurrentPosition` / `watchPosition` | Central web/native adapter uses browser or Capacitor Geolocation while visible                            | Physical-device validation is still required for permission denial, approximate/precise fixes, foreground resume, and walking accuracy. Background location is not implemented. |
+| `navigator.share` / clipboard          | Central adapter preserves Web Share, clipboard, and manual-copy fallback; iOS/Android use Capacitor Share | Validate the native share sheet on each physical-device release candidate.                                                                                                      |
+| `localStorage`                         | Retains device-local schema/versioning                                                                    | Reassess only if lifecycle or capacity evidence requires native storage.                                                                                                        |
+| Route-sharing fragments                | One strict adapter handles cold/warm native links and reuses `/shared`                                    | Universal Links/App Links remain deferred until identifiers, signing, and domain association are final.                                                                         |
 
 The root viewport continues to use `viewport-fit=cover`; existing safe-area variables remain the
 layout boundary for content near system bars.
@@ -210,8 +217,25 @@ distance/time and discovery sequencing, and preserved the route across backgroun
 Android removed the hidden location watch and registered one fresh watch on resume; no crash or
 duplicate active watch was observed. This was emulator/simulated-GPS validation, not physical
 walking validation. Permission behavior, lifecycle delivery, GPS accuracy, and walking behavior
-still require a physical Android device (and later iOS validation). Rate limiting remains the major
-infrastructure blocker before a broader external beta.
+still require a physical Android device (and later iOS validation).
+
+## L2.1 native API protection validation
+
+On 2026-08-22, the existing Worker was redeployed with five Cloudflare Rate Limiting bindings.
+Local and production invalid Matrix calls reached the documented `429` without provider work, and
+valid production Matrix traffic recovered after the 60-second window. A focused Pixel 9 API 36
+smoke then confirmed launch, live MapTiler destination search, real ORS Fastest/Scenic/Explorer
+generation, and a real 45-minute Wander result. App, Geolocation, and Share remained registered.
+
+Unit coverage confirms an HTTP `429` maps to existing native unavailability, so it cannot trigger
+direct ORS/MapTiler calls or same-origin server functions and does not crash the flow. Client
+assets and the debug APK were audited for provider secret names, direct provider hosts, limiter
+binding names, and the Cloudflare runtime import with no matches.
+
+Rate limiting is no longer the outstanding broad-beta blocker. It protects provider quota against
+accidental loops, buggy clients, casual hammering, and simple high-frequency scripts from one
+network source. It does not provide exact per-user accounting or stop distributed botnets,
+rotating proxies, or a determined attacker using many source IPs; those remain future hardening.
 
 ## Native M4 sharing and deep links
 

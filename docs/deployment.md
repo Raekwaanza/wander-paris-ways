@@ -26,7 +26,46 @@ The Worker is named `scenic-route`. Its configuration uses the current compatibi
 `wrangler.jsonc`, the `nodejs_compat` flag required by the application runtime, and an explicit
 `workers_dev: true` production route. Version preview URLs are disabled so the standard
 `workers.dev` hostname is its only configured route. It has no database, storage, queue, analytics,
-Pages, or custom-domain bindings.
+Pages, or custom-domain bindings. Its only additional resources are the five native API Rate
+Limiting bindings below.
+
+## Native API rate limiting
+
+Every allowed-origin `POST /api/v1/*` request is checked against a global burst limiter, a global
+sustained limiter, and exactly one provider-operation class limiter before its JSON body is read or
+validated. `OPTIONS` does not consume quota, and a disallowed origin is still rejected with `403`
+before any limiter runs.
+
+| Binding                             | Namespace |            Limit | Scope                        |
+| ----------------------------------- | --------: | ---------------: | ---------------------------- |
+| `SCENIC_API_BURST_RATE_LIMITER`     |   `21001` |  30 / 10 seconds | Every native API POST        |
+| `SCENIC_API_SUSTAINED_RATE_LIMITER` |   `21002` | 120 / 60 seconds | Every native API POST        |
+| `SCENIC_GEOCODING_RATE_LIMITER`     |   `21003` |  60 / 60 seconds | Search and reverse geocoding |
+| `SCENIC_ROUTING_RATE_LIMITER`       |   `21004` |  30 / 60 seconds | Ordinary and via routing     |
+| `SCENIC_MATRIX_RATE_LIMITER`        |   `21005` |  12 / 60 seconds | Duration Matrix              |
+
+These positive integer namespace IDs are intentionally unique within Scenic Route. Do not reuse
+one for a different binding: Cloudflare bindings with the same namespace share counters.
+
+The limiter key is Cloudflare's `CF-Connecting-IP`; the local simulator's deterministic fallback is
+`unknown-client`. The key is never returned, persisted, or logged. No device ID, fingerprint,
+mobile credential, shared bearer token, or other client secret is introduced. IP-based protection
+is deliberately coarse: a carrier, household, or other NAT can group legitimate clients under one
+counter. Cloudflare applies these counters per location and with eventually consistent,
+intentionally permissive semantics, so this is abuse resistance rather than exact quota or billing
+accounting.
+
+The first failed check stops processing and returns `429` JSON
+`{"error":"rate_limited","retryAfterSeconds":N}` with matching `Retry-After`,
+`Cache-Control: no-store`, and the endpoint's existing allowed-origin CORS headers. A binding error
+fails closed with controlled `503 {"status":"unavailable"}` and does not call a provider. The
+native transport treats both responses as its existing unavailable result, preserving seeded and
+Preview fallbacks where designed.
+
+Use `bun run build`, then `bunx wrangler dev --local` to test bindings without touching production
+counters. Repeated invalid Matrix bodies should return `400` through attempt 12, then `429`; after
+the 60-second class window, invalid traffic should return `400` again. Do not lower production
+limits for testing.
 
 ## Authenticate and configure secrets
 
@@ -90,7 +129,17 @@ Workers dashboard or with Wrangler's version deployment commands. Do not rewrite
 history: this repository is still connected to Lovable for source synchronization even though
 runtime publishing is direct to Cloudflare.
 
-The native API currently has validation, bounded request sizes, timeouts, and a narrow CORS policy,
-but it does not have rate limiting or client authentication. A successful technical deployment is
-appropriate for controlled validation, not a broad public beta. Add an explicit abuse-control plan
-before advertising the endpoint widely.
+On 2026-08-22, Worker version `9b7aa57d-8b7d-45cf-b457-1ef4848ab207` was deployed to
+`https://scenic-route.derrickhunt0.workers.dev`. The home page and all five provider-backed APIs
+returned `200`; production invalid Matrix traffic returned the documented `429`, and a valid Matrix
+request returned `200` after counter recovery. Capacitor preflight remained `204`, and an arbitrary
+origin remained `403`.
+
+Coarse provider-quota abuse protection is now active and removes rate limiting from the broad-beta
+blocker list. This does not make the API impossible to abuse. Distributed botnets, rotating proxy
+pools, determined attackers with many source IPs, authentication, exact user-level quotas, and
+billing/accounting remain future hardening concerns. Depending on scale and product design, later
+controls can include authenticated accounts, Cloudflare WAF/bot controls, Turnstile where it fits a
+human action, and provider-side commercial limits. Worker HTTP status logs/traces are sufficient
+for L2.1 observability; no request identifiers, client IPs, Analytics Engine, or new database were
+added.

@@ -7,6 +7,7 @@ import type {
   WalkingMatrixInput,
 } from "./provider-contracts";
 import type { LatLng } from "./types";
+import type { NativeApiRateLimitClass, NativeApiRateLimitOutcome } from "./native-api-rate-limit";
 
 export const NATIVE_API_MAX_BODY_BYTES = 16_384;
 export const DEFAULT_NATIVE_API_ORIGINS = [
@@ -129,8 +130,17 @@ function corsHeaders(origin: string | null): HeadersInit {
     : {};
 }
 
-function jsonResponse(value: unknown, status: number, origin: string | null) {
-  return Response.json(value, { status, headers: corsHeaders(origin) });
+function jsonResponse(
+  value: unknown,
+  status: number,
+  origin: string | null,
+  additionalHeaders?: HeadersInit,
+) {
+  const headers = new Headers(corsHeaders(origin));
+  new Headers(additionalHeaders).forEach((headerValue, headerName) => {
+    headers.set(headerName, headerValue);
+  });
+  return Response.json(value, { status, headers });
 }
 
 function rejectOrigin(origin: string | null) {
@@ -162,12 +172,37 @@ async function readBoundedJson(request: Request): Promise<unknown> {
 }
 
 export function createNativeApiPostHandler<T>(
+  endpointClass: NativeApiRateLimitClass,
   validate: NativeApiValidator<T>,
   operation: (input: T) => Promise<unknown>,
+  enforceRateLimits: (
+    request: Request,
+    endpointClass: NativeApiRateLimitClass,
+  ) => Promise<NativeApiRateLimitOutcome> = async (request, rateLimitClass) => {
+    const { enforceNativeApiRateLimits } = await import("./native-api-rate-limit.server");
+    return enforceNativeApiRateLimits(request, rateLimitClass);
+  },
 ) {
   return async ({ request }: { request: Request }): Promise<Response> => {
     const origin = request.headers.get("origin");
     if (!isAllowedNativeApiOrigin(origin)) return rejectOrigin(origin);
+    const rateLimit = await enforceRateLimits(request, endpointClass);
+    if (rateLimit.status === "limited") {
+      return jsonResponse(
+        { error: "rate_limited", retryAfterSeconds: rateLimit.retryAfterSeconds },
+        429,
+        origin,
+        {
+          "Cache-Control": "no-store",
+          "Retry-After": String(rateLimit.retryAfterSeconds),
+        },
+      );
+    }
+    if (rateLimit.status === "unavailable") {
+      return jsonResponse({ status: "unavailable" }, 503, origin, {
+        "Cache-Control": "no-store",
+      });
+    }
     let input: T;
     try {
       input = validate(await readBoundedJson(request));
