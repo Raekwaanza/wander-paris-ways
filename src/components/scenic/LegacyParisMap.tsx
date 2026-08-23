@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { project, smoothSvgPath } from "@/lib/scenic/geo";
 import type { LatLng, Poi, ScenicRoute } from "@/lib/scenic/types";
+import { getRenderableRouteGeometry } from "@/lib/scenic/route-geometry";
 import { ILE_CITE, ILE_SAINT_LOUIS, PARKS, SEINE, STREETS, blocks } from "./paris-basemap";
 
 export interface ParisMapProps {
@@ -48,7 +49,7 @@ export function LegacyParisMap({
 
   const base = useMemo(() => {
     const pts: LatLng[] = [];
-    routes.forEach((r) => pts.push(...r.route.path));
+    routes.forEach(({ route }) => pts.push(...(getRenderableRouteGeometry(route) ?? [])));
     if (start) pts.push(start);
     if (end) pts.push(end);
     discoveries.forEach((d) => pts.push(d));
@@ -183,11 +184,13 @@ export function LegacyParisMap({
 
         {/* routes */}
         {routes.map(({ route, active }) => {
+          const geometry = getRenderableRouteGeometry(route);
+          if (!geometry) return null;
           // Never curve authoritative provider geometry through areas it did not traverse.
           const d =
             route.routingSource === "openrouteservice"
-              ? polylineSvgPath(route.path.map(project))
-              : smoothSvgPath(route.path.map(project));
+              ? polylineSvgPath(geometry.map(project))
+              : smoothSvgPath(geometry.map(project));
           return (
             <g key={route.id + route.profile}>
               {active ? (

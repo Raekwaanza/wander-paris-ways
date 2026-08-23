@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
   feasibleWanderSequences,
+  materializeWanderRoute,
   shortlistWanderAnchors,
   stableWanderId,
   wanderCandidateScore,
   wanderProviderPoints,
 } from "./wander-routing";
-import { makeAnalysis, makeCandidate, makePoi } from "./test-fixtures";
+import { MULTI_TURN_ROUTE, makeAnalysis, makeCandidate, makePoi } from "./test-fixtures";
 
 const from = { lat: 48.85, lng: 2.34 };
 const to = { lat: 48.85, lng: 2.36 };
@@ -127,5 +128,21 @@ describe("Wander pure routing", () => {
         sourceFeedbackCount: 3,
       }),
     ).toBeGreaterThan(base);
+  });
+
+  it("materializes the final provider via-route geometry instead of waypoint chords", () => {
+    const candidate = makeCandidate("via", { path: MULTI_TURN_ROUTE });
+    const route = materializeWanderRoute({
+      from,
+      to,
+      analysis: makeAnalysis("via", { candidate }),
+      direct: makeCandidate("direct"),
+      requestedMinutes: 45,
+      fit: "targeted",
+      waypointPoiIds: ["historic"],
+      opts: { interests: [], detourCap: 20, pace: "steady" },
+    });
+    expect(route.path).toBe(MULTI_TURN_ROUTE);
+    expect(route.routingSource).toBe("openrouteservice");
   });
 });
