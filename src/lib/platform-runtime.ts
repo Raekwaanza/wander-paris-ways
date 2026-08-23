@@ -30,3 +30,29 @@ export function normalizeScenicApiBaseUrl(value: unknown): string | null {
   }
   return url.origin;
 }
+
+/** Public browser origin used for links shared outside the local Capacitor WebView. */
+export function getScenicPublicWebOrigin(): string | null {
+  return normalizeScenicPublicWebOrigin(import.meta.env["VITE_SCENIC_PUBLIC_WEB_ORIGIN"]);
+}
+
+export function normalizeScenicPublicWebOrigin(value: unknown): string | null {
+  const configured = typeof value === "string" ? value.trim() : "";
+  if (!configured) return null;
+  const url = new URL(configured);
+  if (url.protocol !== "https:" || url.pathname !== "/" || url.search || url.hash) {
+    throw new Error("VITE_SCENIC_PUBLIC_WEB_ORIGIN must be an HTTPS origin");
+  }
+  return url.origin;
+}
+
+export function resolveScenicPublicWebOrigin(
+  runtime: AppRuntime,
+  configured: unknown,
+  currentWebOrigin: string,
+): string {
+  const publicOrigin = normalizeScenicPublicWebOrigin(configured);
+  if (publicOrigin) return publicOrigin;
+  if (runtime === "web") return new URL(currentWebOrigin).origin;
+  throw new Error("Native sharing requires VITE_SCENIC_PUBLIC_WEB_ORIGIN");
+}

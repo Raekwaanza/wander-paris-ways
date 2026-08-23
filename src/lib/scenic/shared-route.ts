@@ -200,6 +200,8 @@ export function buildSharedRouteUrl(
   payload: SharedRoutePayloadV1,
   location: Pick<Location, "origin" | "pathname">,
 ) {
-  const basePath = location.pathname.replace(/\/(complete|plan|navigate|wander)\/?$/, "");
+  const basePath = location.pathname
+    .replace(/\/(complete|plan|navigate|wander)\/?$/, "")
+    .replace(/\/$/, "");
   return `${location.origin}${basePath}/shared#r=${encodeSharedRoutePayload(payload)}`;
 }

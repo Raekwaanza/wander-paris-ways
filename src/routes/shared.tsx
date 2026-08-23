@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useLocation } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { ParisMap } from "@/components/scenic/ParisMap";
 import { ScenicLoader } from "@/components/scenic/ScenicLoader";
@@ -36,10 +36,11 @@ const asPlace = (endpoint: SharedRoutePayloadV1["from"], id: string): Place => (
 });
 
 function SharedRoutePage() {
+  const hash = useLocation({ select: (location) => location.hash });
   const [state, setState] = useState<ViewState>({ status: "loading-token" });
 
   useEffect(() => {
-    const token = new URLSearchParams(window.location.hash.slice(1)).get("r");
+    const token = new URLSearchParams(hash.replace(/^#/, "")).get("r");
     const payload = token ? decodeSharedRoutePayload(token) : null;
     if (!payload) {
       setState({ status: "invalid" });
@@ -53,7 +54,7 @@ function SharedRoutePage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [hash]);
 
   if (state.status === "loading-token" || state.status === "loading-route") {
     return <SplitShell map={<div />} panel={<ScenicLoader />} />;

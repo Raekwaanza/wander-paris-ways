@@ -19,7 +19,11 @@ import {
   ROUTE_FEEDBACK_RATINGS,
   routeFeedbackId,
 } from "@/lib/scenic/route-feedback";
-import { buildSharedRouteUrl, createSharedRoutePayload } from "@/lib/scenic/shared-route";
+import { createSharedRoutePayload } from "@/lib/scenic/shared-route";
+import {
+  buildCurrentCanonicalSharedRouteUrl,
+  scenicShareProvider,
+} from "@/lib/scenic/share-provider";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -180,25 +184,21 @@ function CompletePage() {
       toast.error("Sharing is available for real walking routes.");
       return;
     }
-    const url = buildSharedRouteUrl(payload, window.location);
+    const url = buildCurrentCanonicalSharedRouteUrl(payload);
     setSharing(true);
     try {
-      if (navigator.share) {
-        await navigator.share({
-          title: `${route.title} Route: ${payload.from.name} → ${payload.to.name}`,
-          text: "A walking route through Paris with curated discoveries nearby.",
-          url,
-        });
+      const result = await scenicShareProvider.share({
+        title: `${route.title} Route: ${payload.from.name} → ${payload.to.name}`,
+        text: "A walking route through Paris with curated discoveries nearby.",
+        url,
+      });
+      if (result.status === "shared") {
         toast.success("Route shared");
-      } else if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(url);
+      } else if (result.status === "copied") {
         toast.success("Link copied");
-      } else {
-        setManualShareUrl(url);
+      } else if (result.status === "manual") {
+        setManualShareUrl(result.url);
       }
-    } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") return;
-      setManualShareUrl(url);
     } finally {
       setSharing(false);
     }

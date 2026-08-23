@@ -181,9 +181,9 @@ Android compilation requires a compatible JDK, Android Studio 2025.2.1 or newer,
 | Capability                             | Current native foundation                                                      | Later work                                                                                                                                                                      |
 | -------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `getCurrentPosition` / `watchPosition` | Central web/native adapter uses browser or Capacitor Geolocation while visible | Physical-device validation is still required for permission denial, approximate/precise fixes, foreground resume, and walking accuracy. Background location is not implemented. |
-| `navigator.share` / clipboard          | Existing best-effort web behavior remains                                      | Add a centralized share adapter before native sharing changes.                                                                                                                  |
+| `navigator.share` / clipboard          | Central adapter preserves Web Share, clipboard, and manual-copy fallback; iOS/Android use Capacitor Share | Validate the native share sheet on each physical-device release candidate.                                                                                       |
 | `localStorage`                         | Retains device-local schema/versioning                                         | Reassess only if lifecycle or capacity evidence requires native storage.                                                                                                        |
-| Route-sharing fragments                | Parse inside the bundled WebView                                               | Universal Links/App Links and cold-start delivery require a later deep-link milestone.                                                                                          |
+| Route-sharing fragments                | One strict adapter handles cold/warm native links and reuses `/shared`         | Universal Links/App Links remain deferred until identifiers, signing, and domain association are final.                                                                         |
 
 The root viewport continues to use `viewport-fit=cover`; existing safe-area variables remain the
 layout boundary for content near system bars.
@@ -213,9 +213,37 @@ walking validation. Permission behavior, lifecycle delivery, GPS accuracy, and w
 still require a physical Android device (and later iOS validation). Rate limiting remains the major
 infrastructure blocker before a broader external beta.
 
+## Native M4 sharing and deep links
+
+Sharing now goes through one platform adapter. Web retains the existing Web Share API, clipboard,
+then manual-copy sequence. Capacitor iOS and Android use the official `@capacitor/share` native
+share sheet; cancellation is not reported as an error, and genuine native failure displays the
+existing manual-copy experience.
+
+`VITE_SCENIC_PUBLIC_WEB_ORIGIN` is public build configuration and is deliberately separate from
+`VITE_SCENIC_API_BASE_URL`. It must be an HTTPS origin with no path, query, or fragment. Internal
+beta builds currently set both variables to `https://scenic-route.derrickhunt0.workers.dev`, but
+they may diverge later. Public shares always use the canonical browser-compatible form
+`https://scenic-route.derrickhunt0.workers.dev/shared#r=<token>`; native clients never share their
+local `https://localhost` WebView origin.
+
+The Android manifest and iOS plist register the narrow custom scheme
+`scenicroute://shared#r=<token>` for technical testing and app-to-app opening. This custom scheme is
+not the user-facing share format. A single native adapter processes both `App.getLaunchUrl()` cold
+starts and `appUrlOpen` warm links, validates the exact scheme or configured HTTPS origin, host,
+path, fragment shape, token length, and existing shared payload contract, then navigates to the
+same `/shared` route. Invalid or unsafe URLs are ignored and cannot select arbitrary application
+destinations.
+
+Production HTTPS-to-app association is not configured: there is no Android App Link, `autoVerify`,
+`assetlinks.json`, iOS Universal Link, Associated Domains entitlement, or AASA file. Those require
+the final package/bundle IDs, production signing identities, and controlled public-domain
+association. iOS runtime validation also waits for macOS/Xcode and a signed simulator or device
+build.
+
 ## Recommended next native milestone
 
-Run the same permission, foreground-resume, route-progress, and walking checks on a physical
-Android device, then repeat them on iPhone when macOS and Xcode are available. After that field
-proof, M4 can address native sharing and deep links as a separate milestone. Do not add background
-location to either scope.
+M5 should validate foreground location, navigation recovery, sharing, and link delivery on physical
+Android and iPhone hardware, then prepare final application identifiers and signing. Universal
+Links/App Links should follow only after those identifiers, certificates/fingerprints, and domain
+ownership are final. Background location remains a separate later decision.
