@@ -47,7 +47,8 @@ function ProfilePage() {
       panel={
         <div className="space-y-6 px-5 pt-5 pb-6">
           <div>
-            <h1 className="text-display text-2xl">Preferences</h1>
+            <p className="text-eyebrow text-primary">Your route taste</p>
+            <h1 className="mt-1 text-2xl font-semibold tracking-tight">Preferences</h1>
             <p className="mt-1 text-sm text-muted-foreground">
               Everything here stays on this device.
             </p>
@@ -55,17 +56,17 @@ function ProfilePage() {
 
           <section>
             <h2 className="text-sm font-medium">How scenic should your walks be?</h2>
-            <div className="mt-3 grid gap-2">
+            <div className="mt-3 overflow-hidden rounded-lg border border-border bg-card">
               {DETOURS.map((d) => (
                 <button
                   key={d.cap}
                   type="button"
                   onClick={() => setPrefs({ detourCap: d.cap })}
                   className={cn(
-                    "flex min-h-14 items-center justify-between rounded-2xl border px-4 text-left transition-colors",
+                    "flex min-h-14 w-full items-center justify-between border-b border-border px-4 text-left transition-colors last:border-b-0",
                     prefs.detourCap === d.cap
-                      ? "border-primary bg-accent text-accent-foreground"
-                      : "border-border bg-card hover:bg-secondary",
+                      ? "bg-accent text-accent-foreground"
+                      : "bg-card hover:bg-secondary",
                   )}
                 >
                   <span className="text-sm font-medium">{d.label}</span>
@@ -86,17 +87,17 @@ function ProfilePage() {
 
           <section>
             <h2 className="text-sm font-medium">Walking pace</h2>
-            <div className="mt-3 flex gap-2">
+            <div className="mt-3 flex overflow-hidden rounded-lg border border-border">
               {PACES.map((p) => (
                 <button
                   key={p.id}
                   type="button"
                   onClick={() => setPrefs({ pace: p.id })}
                   className={cn(
-                    "min-h-12 flex-1 rounded-xl border px-2 text-center transition-colors",
+                    "min-h-12 flex-1 border-r border-border px-2 text-center transition-colors last:border-r-0",
                     prefs.pace === p.id
-                      ? "border-primary bg-accent text-accent-foreground"
-                      : "border-border bg-card hover:bg-secondary",
+                      ? "bg-accent text-accent-foreground"
+                      : "bg-card hover:bg-secondary",
                   )}
                 >
                   <span className="block text-sm font-medium">{p.label}</span>
@@ -108,17 +109,17 @@ function ProfilePage() {
 
           <section>
             <h2 className="text-sm font-medium">Distance units</h2>
-            <div className="mt-3 flex gap-2">
+            <div className="mt-3 flex overflow-hidden rounded-lg border border-border">
               {(["km", "mi"] as const).map((u) => (
                 <button
                   key={u}
                   type="button"
                   onClick={() => setPrefs({ units: u })}
                   className={cn(
-                    "min-h-11 flex-1 rounded-xl border text-sm font-medium transition-colors",
+                    "min-h-11 flex-1 border-r border-border text-sm font-medium transition-colors last:border-r-0",
                     prefs.units === u
-                      ? "border-primary bg-accent text-accent-foreground"
-                      : "border-border bg-card hover:bg-secondary",
+                      ? "bg-accent text-accent-foreground"
+                      : "bg-card hover:bg-secondary",
                   )}
                 >
                   {u === "km" ? "Kilometres" : "Miles"}
@@ -127,7 +128,7 @@ function ProfilePage() {
             </div>
           </section>
 
-          <section className="rounded-2xl border border-border bg-secondary/60 p-4">
+          <section className="border-y border-border py-4">
             <div className="flex items-start gap-2">
               <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary" strokeWidth={1.75} />
               <div>

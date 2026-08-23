@@ -181,3 +181,30 @@ Don't make Scenic Route look like generic SaaS, a Google Maps reskin, luxury con
 cartoon Paris, an over-illustrated tourist map, cyberpunk navigation, or an outdoors/hiking UI. Don't
 add berets, baguettes, hearts, cartoon Eiffel Towers, parchment, sepia, distressed paper, excessive
 romance, or literal retro-game chrome.
+
+## M5.2B Screen Composition
+
+M5.2B applies the foundation to the core journey without changing route generation, canonical
+geometry, map paint, discovery copy, or native status-bar behavior. `SplitShell` remains the app's
+mobile-first map-and-panel architecture; its sheet edge now uses the design-system radius token and
+screen panels rely on whitespace, dividers, and grouped controls instead of stacks of floating cards.
+
+- Landing uses the map as a quiet atmospheric backdrop, one editorial promise, one destination
+  field, and one Gold primary action. Secondary journeys remain text links.
+- Explore treats From and To as one journey control. Route finding precedes optional interests and
+  location privacy support is a quieter inline section.
+- Plan presents Fastest, Scenic, and Explorer as one comparison group. Scenic receives editorial
+  recommendation emphasis, while the user's actual selected state remains explicit and truthful.
+- Discoveries are ordered chapters: two-digit ordinal, editorial place name, supporting kicker, and
+  a single row target when detail is available. The same pattern is reused for shared and saved views.
+- Wander leads with time and destination, Navigate keeps a functional progress hierarchy without
+  inventing turn instructions, and Complete uses an editorial summary with divided metrics.
+- Profile groups route-taste choices into compact segmented surfaces. Saved routes and shared routes
+  use coherent lists and metric strips rather than individually boxed values.
+
+Gold is reserved for the screen's primary action, selected controls, and concise recommendation
+signals. Cormorant Garamond is limited to hero language, route identity, place identity, and editorial
+explanations; functional screen headings use Sen. `rounded-full` remains only on chips, badges,
+circular buttons, progress tracks, dots, and genuinely pill-shaped compact status controls. The
+M5.2B audit removes screen-local `rounded-2xl` entirely and replaces broad `rounded-xl` usage with
+system control/card radii.

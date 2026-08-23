@@ -34,6 +34,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 export const Route = createFileRoute("/complete")({
   validateSearch: (s: Record<string, unknown>) => ({
@@ -238,7 +240,7 @@ function CompletePage() {
             </h1>
           </div>
 
-          <dl className="grid grid-cols-2 gap-2">
+          <dl className="grid grid-cols-2 divide-x divide-y divide-border border-y border-border">
             {[
               {
                 k: `${estimated ? "≈" : ""}${route.km} km`,
@@ -248,7 +250,7 @@ function CompletePage() {
               { k: `${estimated ? "≈" : ""}+${route.extraMinutes} min`, v: "extra time" },
               { k: `${neighborhoods}`, v: "neighborhoods represented" },
             ].map((s) => (
-              <div key={s.v} className="rounded-2xl border border-border bg-secondary/50 p-3.5">
+              <div key={s.v} className="px-3 py-4 odd:pl-0 even:pr-0">
                 <dt className="text-xl font-semibold tabular-nums">{s.k}</dt>
                 <dd className="text-xs text-muted-foreground">{s.v}</dd>
               </div>
@@ -326,11 +328,12 @@ function CompletePage() {
           )}
 
           <div className="space-y-2">
-            <button
+            <Button
               type="button"
+              size="lg"
               onClick={onSave}
               disabled={saved}
-              className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-base font-medium text-primary-foreground shadow-lift disabled:opacity-70"
+              className="h-14 w-full text-base shadow-lift"
             >
               {saved ? (
                 <Check className="size-4" strokeWidth={2} />
@@ -338,23 +341,26 @@ function CompletePage() {
                 <Bookmark className="size-4" strokeWidth={2} />
               )}
               {saved ? "Route saved" : "Save route"}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              size="lg"
+              variant="outline"
               onClick={onShare}
               disabled={sharing}
-              className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-border bg-card text-sm font-medium hover:bg-secondary"
+              className="w-full"
             >
               <Share2 className="size-4" strokeWidth={1.75} />
               {sharing ? "Sharing…" : "Share route"}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              variant="ghost"
               onClick={() => navigate({ to: "/explore" })}
-              className="min-h-11 w-full text-sm text-muted-foreground underline-offset-4 hover:underline"
+              className="w-full text-muted-foreground"
             >
               Plan another walk
-            </button>
+            </Button>
           </div>
           <AlertDialog open={confirmLocationShare} onOpenChange={setConfirmLocationShare}>
             <AlertDialogContent>
@@ -385,12 +391,12 @@ function CompletePage() {
                   Automatic copying isn't available. Select and copy this route link manually.
                 </AlertDialogDescription>
               </AlertDialogHeader>
-              <input
+              <Input
                 readOnly
                 value={manualShareUrl ?? ""}
                 onFocus={(event) => event.currentTarget.select()}
                 aria-label="Share route link"
-                className="w-full rounded-xl border border-border bg-card px-3 py-2 text-sm"
+                className="w-full"
               />
               <AlertDialogFooter>
                 <AlertDialogCancel>Done</AlertDialogCancel>

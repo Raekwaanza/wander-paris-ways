@@ -2,6 +2,7 @@ import { Bookmark, BookmarkCheck, ChevronRight, X } from "lucide-react";
 import type { Poi } from "@/lib/scenic/types";
 import { useSavedDiscoveries } from "@/lib/scenic/store";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 interface Props {
   poi: Poi;
@@ -28,27 +29,18 @@ export function DiscoveryCard({ poi, onLearnMore, onSkip, contextLabel, classNam
       </div>
       <p className="mt-2.5 text-sm leading-relaxed text-muted-foreground">{poi.description}</p>
       <div className="mt-3.5 flex items-center gap-2">
-        <button
-          type="button"
-          onClick={onLearnMore}
-          className="inline-flex min-h-10 items-center gap-1 rounded-full bg-primary px-4 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
-        >
+        <Button type="button" onClick={onLearnMore}>
           Learn more
           <ChevronRight className="size-4" strokeWidth={2} />
-        </button>
-        <button
-          type="button"
-          onClick={() => toggle(poi)}
-          aria-pressed={isSaved}
-          className="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-border px-3.5 text-sm font-medium transition-colors hover:bg-secondary"
-        >
+        </Button>
+        <Button type="button" variant="outline" onClick={() => toggle(poi)} aria-pressed={isSaved}>
           {isSaved ? (
             <BookmarkCheck className="size-4 text-primary" strokeWidth={1.75} />
           ) : (
             <Bookmark className="size-4" strokeWidth={1.75} />
           )}
           {isSaved ? "Saved" : "Save"}
-        </button>
+        </Button>
         {onSkip && (
           <button
             type="button"

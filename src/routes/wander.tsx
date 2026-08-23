@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { getCurrentLocationFix } from "@/lib/scenic/current-location";
 import { tripEndpointFromPlace } from "@/lib/scenic/trip-endpoints";
 import { isNetworkNavigableRoute } from "@/lib/scenic/navigation";
+import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/wander")({
   head: () => ({
@@ -122,13 +123,15 @@ function WanderPage() {
           <div className="space-y-5 px-5 pt-5 pb-6">
             <div>
               <p className="text-eyebrow text-muted-foreground">I have time to explore</p>
-              <h1 className="text-display mt-1 text-2xl">Where do you eventually need to be?</h1>
+              <h1 className="mt-1 text-2xl font-semibold tracking-tight">
+                Where do you eventually need to be?
+              </h1>
             </div>
 
             <button
               type="button"
               onClick={() => setPicker(true)}
-              className="flex min-h-14 w-full items-center justify-between gap-3 rounded-2xl border border-border bg-card px-4 text-left hover:bg-secondary"
+              className="flex min-h-14 w-full items-center justify-between gap-3 rounded-lg border border-border bg-card px-4 text-left shadow-card hover:bg-secondary"
             >
               <span>
                 <span className="block text-[11px] tracking-wide text-muted-foreground uppercase">
@@ -191,7 +194,7 @@ function WanderPage() {
               )}
             </div>
 
-            <div className="surface-card p-4">
+            <section className="border-y border-border py-4">
               <div className="flex items-center gap-2">
                 <Clock3 className="size-4 text-primary" strokeWidth={1.75} />
                 <h3 className="text-display text-lg">{route.title}</h3>
@@ -246,7 +249,7 @@ function WanderPage() {
                 {route.minutes} min · {isPreview ? "≈" : ""}
                 {route.km} km · Estimated arrival around {arrival}
               </p>
-            </div>
+            </section>
 
             <div>
               <h2 className="text-eyebrow text-muted-foreground">In the mood for</h2>
@@ -257,11 +260,12 @@ function WanderPage() {
               />
             </div>
 
-            <button
+            <Button
               type="button"
+              size="lg"
               disabled={!navigationReady}
               onClick={start}
-              className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-base font-medium text-primary-foreground shadow-lift enabled:hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+              className="h-14 w-full text-base shadow-lift"
             >
               {navigationReady
                 ? takesDirectRoute
@@ -269,7 +273,7 @@ function WanderPage() {
                   : "Start wandering"
                 : "Preview only"}
               {navigationReady && <ArrowRight className="size-4" strokeWidth={2} />}
-            </button>
+            </Button>
             {!navigationReady && (
               <p className="-mt-3 text-center text-sm text-muted-foreground">
                 Real pedestrian routing isn't available for this Wander right now.

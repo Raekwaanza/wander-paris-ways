@@ -20,7 +20,7 @@ export function ScenicLoader({ title = "Finding the interesting way there…" }:
         <span className="absolute inset-0 rounded-full bg-primary/25 [animation:soft-pulse_2s_ease-in-out_infinite]" />
         <span className="absolute inset-[38%] rounded-full bg-primary" />
       </div>
-      <h2 className="text-display mt-5 text-lg">{title}</h2>
+      <h2 className="mt-5 text-lg font-semibold">{title}</h2>
       <p key={i} className="animate-sheet-up mt-1.5 text-sm text-muted-foreground">
         {MESSAGES[i]}
       </p>

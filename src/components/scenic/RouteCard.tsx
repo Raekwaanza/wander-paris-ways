@@ -18,15 +18,25 @@ export function RouteCard({ route, selected, recommended, onSelect }: Props) {
       onClick={onSelect}
       aria-pressed={selected}
       className={cn(
-        "w-full rounded-2xl border p-4 text-left transition-all",
+        "relative w-full border-b border-border px-4 py-4 text-left transition-colors last:border-b-0",
         selected
-          ? "border-primary bg-card shadow-lift"
-          : "border-border bg-card/70 hover:border-muted-foreground/40",
+          ? "bg-accent/55"
+          : recommended
+            ? "bg-card hover:bg-secondary/45"
+            : "bg-card/55 hover:bg-secondary/45",
       )}
     >
+      {selected && <span className="absolute inset-y-3 left-0 w-0.5 rounded-full bg-primary" />}
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2">
-          <h3 className="text-display text-lg leading-none">{route.title}</h3>
+          <h3
+            className={cn(
+              "leading-none",
+              recommended ? "text-display text-xl" : "text-base font-semibold",
+            )}
+          >
+            {route.title}
+          </h3>
           {recommended && (
             <span className="rounded-full bg-accent px-2 py-0.5 text-[10px] font-semibold tracking-wide text-accent-foreground uppercase">
               Recommended
@@ -58,7 +68,7 @@ export function RouteCard({ route, selected, recommended, onSelect }: Props) {
           {route.km} km
         </span>
         {route.extraMinutes > 0 && (
-          <span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-terracotta tabular-nums">
+          <span className="rounded-full bg-accent px-2 py-0.5 text-xs font-semibold text-accent-foreground tabular-nums">
             {estimated ? "≈" : ""}+{route.extraMinutes} min
           </span>
         )}

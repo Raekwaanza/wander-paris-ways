@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { Button } from "@/components/ui/button";
 
 interface Props {
   reason?: "location" | "route-details";
@@ -17,12 +18,9 @@ export function LocationRecovery({ reason = "location" }: Props) {
             ? "This destination was selected from live search and isn't stored between sessions yet. Return to the planner to choose it again."
             : "Your precise location isn't stored between sessions. Return to the planner to use your location again."}
         </p>
-        <Link
-          to="/explore"
-          className="mt-5 inline-flex min-h-11 items-center rounded-full bg-primary px-5 text-sm font-medium text-primary-foreground"
-        >
-          Back to planner
-        </Link>
+        <Button asChild size="lg" className="mt-5">
+          <Link to="/explore">Back to planner</Link>
+        </Button>
       </div>
     </main>
   );

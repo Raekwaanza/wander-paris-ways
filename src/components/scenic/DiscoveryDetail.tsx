@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import type { Poi } from "@/lib/scenic/types";
 import { useSavedDiscoveries } from "@/lib/scenic/store";
 import { interestLabel } from "@/lib/scenic/interests";
+import { Button } from "@/components/ui/button";
 
 interface Props {
   poi: Poi | null;
@@ -16,7 +17,7 @@ export function DiscoveryDetail({ poi, onOpenChange }: Props) {
 
   return (
     <Dialog open={!!poi} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] max-w-md overflow-y-auto rounded-3xl">
+      <DialogContent className="max-h-[85vh] max-w-md overflow-y-auto">
         <DialogHeader>
           <p className="text-eyebrow text-muted-foreground">
             {poi.category} · {poi.arrondissement}
@@ -32,7 +33,9 @@ export function DiscoveryDetail({ poi, onOpenChange }: Props) {
           <DialogTitle className="text-display text-2xl">{poi.name}</DialogTitle>
         </DialogHeader>
 
-        <p className="text-sm leading-relaxed text-muted-foreground">{poi.detail}</p>
+        <p className="border-y border-border py-4 text-sm leading-relaxed text-muted-foreground">
+          {poi.detail}
+        </p>
 
         <div className="flex flex-wrap gap-1.5">
           {poi.interests.map((i) => (
@@ -49,18 +52,14 @@ export function DiscoveryDetail({ poi, onOpenChange }: Props) {
           <span className="text-xs text-muted-foreground">
             Suggested stop · about {poi.visitMinutes} min
           </span>
-          <button
-            type="button"
-            onClick={() => toggle(poi)}
-            className="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-border px-4 text-sm font-medium hover:bg-secondary"
-          >
+          <Button type="button" variant="outline" onClick={() => toggle(poi)}>
             {isSaved ? (
               <BookmarkCheck className="size-4 text-primary" strokeWidth={1.75} />
             ) : (
               <Bookmark className="size-4" strokeWidth={1.75} />
             )}
             {isSaved ? "Saved" : "Save"}
-          </button>
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
