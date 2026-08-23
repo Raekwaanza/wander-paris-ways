@@ -1,5 +1,6 @@
 import { INTEREST_IDS } from "./interests";
 import { isInParisMvpBounds } from "./paris-bounds";
+import { getRenderableRouteGeometry } from "./route-geometry";
 import type {
   InterestId,
   Pace,
@@ -169,7 +170,8 @@ export function createSharedRoutePayload(args: {
   pace: Pace;
 }): SharedRoutePayloadV1 | null {
   const { route, trip, from, to, pace } = args;
-  if (route.routingSource !== "openrouteservice") return null;
+  if (route.routingSource !== "openrouteservice" || getRenderableRouteGeometry(route) === null)
+    return null;
   const payload: SharedRoutePayloadV1 = {
     v: 1,
     from: roundedEndpoint(from, "Route start"),

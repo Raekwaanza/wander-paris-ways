@@ -1,10 +1,32 @@
 import type {
+  LatLng,
   Poi,
   RouteCorridorAnalysis,
   RouteFeedback,
   ScoredRouteCandidate,
   WalkingRouteCandidate,
 } from "./types";
+
+export const L_SHAPED_ROUTE: LatLng[] = [
+  { lat: 48.85, lng: 2.34 },
+  { lat: 48.851, lng: 2.34 },
+  { lat: 48.851, lng: 2.342 },
+];
+
+export const BRIDGE_LIKE_ROUTE: LatLng[] = [
+  { lat: 48.852, lng: 2.338 },
+  { lat: 48.853, lng: 2.34 },
+  { lat: 48.854, lng: 2.34 },
+  { lat: 48.855, lng: 2.342 },
+];
+
+export const MULTI_TURN_ROUTE: LatLng[] = [
+  { lat: 48.856, lng: 2.343 },
+  { lat: 48.857, lng: 2.343 },
+  { lat: 48.857, lng: 2.345 },
+  { lat: 48.858, lng: 2.345 },
+  { lat: 48.858, lng: 2.347 },
+];
 
 export function makePoi(id: string, overrides: Partial<Poi> = {}): Poi {
   return {

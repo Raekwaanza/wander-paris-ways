@@ -48,7 +48,7 @@ The product has two visibly different route sources:
 1. **Provider-backed routes** use ORS pedestrian-network geometry and can become navigation-ready.
 2. **Synthetic Preview routes** keep planning usable when ORS is unavailable or cannot supply a suitable alternative. They are estimates based on mock geometry and are **not navigation-ready**.
 
-Only a route whose `routingSource` is `openrouteservice` passes the central guard in [`navigation.ts`](src/lib/scenic/navigation.ts) and can enter live navigation. Preview is not equivalent to real routing.
+Only a route whose `routingSource` is `openrouteservice` and whose canonical path contains at least two valid coordinates passes the central guard in [`navigation.ts`](src/lib/scenic/navigation.ts) and can enter live navigation. Preview is not equivalent to real routing.
 
 The deterministic server-side E2E fixture described under [Testing](#testing) is a third, test-only mechanism: it behaves as an ORS test double and exercises the normal analysis, scoring, and selection pipeline. It is not the product Preview generator.
 
@@ -133,7 +133,7 @@ MapTiler supplies Paris-bounded forward location search and best-effort reverse 
 
 ### Map rendering
 
-[`ParisMap.tsx`](src/components/scenic/ParisMap.tsx) renders GeoJSON with MapLibre and defaults to OpenFreeMap Liberty. It uses zero GeoJSON source tolerance so real route vertices are not simplified or smoothed. If MapLibre cannot load or initialize within its startup window, the application uses [`LegacyParisMap.tsx`](src/components/scenic/LegacyParisMap.tsx); that fallback also avoids smoothing ORS geometry.
+[`route-geometry.ts`](src/lib/scenic/route-geometry.ts) is the shared renderability gate. It passes a valid `ScenicRoute.path` through unchanged, converts only `{ lat, lng }` to GeoJSON `[lng, lat]`, and suppresses an invalid provider-labelled path instead of constructing an endpoint line. [`ParisMap.tsx`](src/components/scenic/ParisMap.tsx) renders that GeoJSON with MapLibre and defaults to OpenFreeMap Liberty. It uses zero GeoJSON source tolerance so real route vertices are not simplified or smoothed. If MapLibre cannot load or initialize within its startup window, the application uses [`LegacyParisMap.tsx`](src/components/scenic/LegacyParisMap.tsx); that fallback uses the same gate and also avoids smoothing ORS geometry.
 
 ## Curated Paris POIs
 
@@ -277,7 +277,7 @@ assets. See [Cloudflare deployment](docs/deployment.md) for the production workf
 | `VITE_SCENIC_DATA_MODE`         | Public, non-secret          | Accepts `mock` or `live`, defaulting invalid/missing values to `mock`. The current hybrid services attempt keyed server providers regardless; `live` is reserved, warns, and does not activate a complete live provider set. |
 | `VITE_SCENIC_MAP_STYLE_URL`     | Public, non-secret          | Overrides the MapLibre style; defaults to `https://tiles.openfreemap.org/styles/liberty`.                                                                                                                                    |
 | `VITE_SCENIC_API_BASE_URL`      | Public, non-secret          | HTTPS origin of the deployed Scenic Route backend. Required in mobile builds for provider-backed features; never contains provider credentials or a path.                                                                    |
-| `VITE_SCENIC_PUBLIC_WEB_ORIGIN` | Public, non-secret          | Canonical HTTPS origin for browser-compatible shared-route links. Required for native sharing and validated separately from the API origin.                                                                                   |
+| `VITE_SCENIC_PUBLIC_WEB_ORIGIN` | Public, non-secret          | Canonical HTTPS origin for browser-compatible shared-route links. Required for native sharing and validated separately from the API origin.                                                                                  |
 | `SCENIC_NATIVE_ALLOWED_ORIGINS` | Server-only security config | Optional comma-separated additions to the narrow `/api/v1/*` CORS allowlist. Origin is not authentication.                                                                                                                   |
 | `SCENIC_E2E_FIXTURES`           | Server-only test flag       | `1` activates deterministic provider fixtures only when `NODE_ENV !== "production"`. Do not treat it as normal app configuration.                                                                                            |
 

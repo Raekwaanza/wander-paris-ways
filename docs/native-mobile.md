@@ -265,6 +265,20 @@ the final package/bundle IDs, production signing identities, and controlled publ
 association. iOS runtime validation also waits for macOS/Xcode and a signed simulator or device
 build.
 
+## M5.1 route-geometry integrity
+
+Native and web builds share the same route rendering and navigation code. The canonical
+`route-geometry.ts` gate preserves every valid provider vertex, converts `{ lat, lng }` to MapLibre
+`[lng, lat]`, and never substitutes endpoint or discovery interpolation for a provider-labelled
+route. The MapLibre and legacy renderers both use this gate. Navigation eligibility additionally
+requires valid provider geometry, so the line rendered by the map and the path used for GPS
+projection, adherence, and discovery progress are the same `ScenicRoute.path`.
+
+Synthetic geometry remains limited to routes explicitly marked `routingSource: "mock"` and shown
+as Preview behavior. Shared `changed`/`unavailable` states and provider-labelled routes with missing
+or malformed geometry display no fabricated route line. Saved routes currently persist summaries,
+not geometry, so the Saved map has discovery markers but no saved-route line.
+
 ## Recommended next native milestone
 
 M5 should validate foreground location, navigation recovery, sharing, and link delivery on physical

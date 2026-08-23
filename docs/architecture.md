@@ -87,7 +87,7 @@ flowchart LR
 
 ### Geometry and identity
 
-Provider path vertices are never replaced with a hand-built POI path. This preserves the meaning of provider distance/duration, network walkability, map display, GPS projection, and stable route identity. The MapLibre source uses zero tolerance to avoid route simplification; the legacy renderer avoids smoothing real ORS routes.
+Provider path vertices are never replaced with a hand-built POI path. This preserves the meaning of provider distance/duration, network walkability, map display, GPS projection, and stable route identity. [`route-geometry.ts`](../src/lib/scenic/route-geometry.ts) is the canonical rendering gate: it accepts only paths with at least two finite, in-range coordinates, returns the original path without interpolation, and performs the sole MapLibre format conversion from `{ lat, lng }` to `[lng, lat]`. A provider-labelled route with invalid geometry produces no line and cannot enter navigation or sharing. The MapLibre source uses zero tolerance to avoid route simplification; the legacy renderer avoids smoothing real ORS routes.
 
 Ordinary stable IDs separate Fastest identity from alternative candidate geometry. Sharing uses those IDs to detect a route that can no longer be reconstructed. Test fixture geometry is permitted only as an ORS test double outside production and still flows through normalization, analysis, scoring, and selection.
 
@@ -167,6 +167,22 @@ The result is `exact`, `changed`, or `unavailable`; input from an arbitrary URL 
 ## Maps and graceful fallback
 
 [`ParisMap.tsx`](../src/components/scenic/ParisMap.tsx) dynamically starts MapLibre using the configured public style. It renders paths as GeoJSON, the current device location separately from route endpoints, and curated discovery markers. Startup failure, WebGL failure, or a timeout activates [`LegacyParisMap.tsx`](../src/components/scenic/LegacyParisMap.tsx). This map fallback is separate from a route Preview fallback: map rendering can fall back while the underlying route remains real.
+
+### Audited route-geometry surfaces
+
+| Surface                                 | Route object and final line source                                                                              | Preview condition                                                                                                 |
+| --------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Landing demo                            | Scenic result from `useRoutes`; its own canonical `path`                                                        | The demo route is a labelled mock Preview only when a suitable ORS result is unavailable.                         |
+| Explore/home planning                   | No route line; endpoints and discovery markers only                                                             | Not applicable.                                                                                                   |
+| Plan Fastest/Scenic/Explorer comparison | Three distinct `ScenicRoute` objects; each feature uses that route's own canonical `path`                       | A profile may be a clearly labelled mock Preview when ORS or a suitable real alternative is unavailable.          |
+| Selected-route preview                  | The active comparison route's canonical `path`; selection changes styling only                                  | Same explicit profile Preview semantics as Plan.                                                                  |
+| Wander                                  | `WanderRoute.path`, which is the final ORS via result for targeted Wander                                       | Mock path only for `wander.fit === "preview"`; direct-only and insufficient-time retain the real direct ORS path. |
+| Active navigation                       | The provider route's canonical `path` supplies both map GeoJSON and GPS projection/adherence/discovery progress | Preview and invalid provider geometry fail the navigation guard and show no route line.                           |
+| Completion                              | Reconstructed trip route's canonical `path`                                                                     | A reconstruction that is only Preview remains visibly estimated and is not treated as a completed real route.     |
+| Shared route                            | Only `status === "exact"` supplies the reconstructed ORS route's canonical `path`                               | `changed` and `unavailable` show endpoints and summary only, with no fabricated line.                             |
+| Saved                                   | No saved-route geometry exists; the map shows saved discovery markers only                                      | Not applicable.                                                                                                   |
+
+Both MapLibre and the legacy SVG fallback consume the same renderability gate. Neither constructs a start/end or discovery-to-discovery line for a provider-backed route.
 
 ## Safety boundaries for future changes
 

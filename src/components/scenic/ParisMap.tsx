@@ -2,6 +2,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { scenicConfig } from "@/lib/scenic/config";
 import type { LatLng, Poi } from "@/lib/scenic/types";
+import {
+  buildRouteFeatureCollection,
+  getRenderableRouteGeometry,
+  routeGeometryToMapLibreCoordinates,
+} from "@/lib/scenic/route-geometry";
 import { LegacyParisMap, type ParisMapProps } from "./LegacyParisMap";
 import type { GeoJSONSource, Map as MapLibreMap, Marker } from "maplibre-gl";
 
@@ -13,7 +18,7 @@ const PARIS_CENTER: [number, number] = [2.3522, 48.8566];
 const MAP_STARTUP_TIMEOUT_MS = 12_000;
 
 function coordinates(point: LatLng): [number, number] {
-  return [point.lng, point.lat];
+  return routeGeometryToMapLibreCoordinates([point])[0]!;
 }
 
 function makeMarkerElement(kind: "start" | "end" | "user", label: string) {
@@ -44,14 +49,7 @@ export function ParisMap(props: ParisMapProps) {
   const [mapFailed, setMapFailed] = useState(false);
 
   const routeData = useMemo<GeoJSON.FeatureCollection<GeoJSON.LineString>>(
-    () => ({
-      type: "FeatureCollection",
-      features: routes.map(({ route, active }) => ({
-        type: "Feature",
-        properties: { id: route.id, active },
-        geometry: { type: "LineString", coordinates: route.path.map(coordinates) },
-      })),
-    }),
+    () => buildRouteFeatureCollection(routes),
     [routes],
   );
   const initialInteractiveRef = useRef(interactive);
@@ -268,7 +266,9 @@ export function ParisMap(props: ParisMapProps) {
   useEffect(() => {
     const map = mapRef.current;
     if (!mapReady || !map) return;
-    const points: LatLng[] = routes.flatMap(({ route }) => route.path);
+    const points: LatLng[] = routes.flatMap(({ route }) => [
+      ...(getRenderableRouteGeometry(route) ?? []),
+    ]);
     if (start) points.push(start);
     if (end) points.push(end);
     points.push(...discoveries);

@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { selectExplorerCandidate, selectScenicCandidate } from "./route-selection";
-import { makeAnalysis, makeCandidate, makeScored } from "./test-fixtures";
+import {
+  BRIDGE_LIKE_ROUTE,
+  L_SHAPED_ROUTE,
+  makeAnalysis,
+  makeCandidate,
+  makeScored,
+} from "./test-fixtures";
 
 describe("route selection", () => {
   it("selects the highest ranked within-cap Scenic candidate", () => {
@@ -68,5 +74,26 @@ describe("route selection", () => {
         "scenic",
       ),
     ).toBeUndefined();
+  });
+
+  it("preserves the selected Scenic and Explorer candidate geometry", () => {
+    const scenic = makeScored("scenic", {
+      analysis: makeAnalysis("scenic", {
+        candidate: makeCandidate("scenic", { path: L_SHAPED_ROUTE }),
+      }),
+      contributingPoiIds: ["a"],
+    });
+    const explorer = makeScored("explorer", {
+      analysis: makeAnalysis("explorer", {
+        candidate: makeCandidate("explorer", { providerRank: 1, path: BRIDGE_LIKE_ROUTE }),
+      }),
+      contributingPoiIds: ["a", "b"],
+    });
+    expect(selectScenicCandidate([scenic, explorer], "fast")!.analysis.candidate.path).toBe(
+      L_SHAPED_ROUTE,
+    );
+    expect(
+      selectExplorerCandidate([scenic, explorer], "fast", "scenic")!.analysis.candidate.path,
+    ).toBe(BRIDGE_LIKE_ROUTE);
   });
 });
