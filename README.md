@@ -54,6 +54,8 @@ The deterministic server-side E2E fixture described under [Testing](#testing) is
 
 ## Design and Product Principles
 
+The canonical visual language is documented in the [Scenic Route design system](docs/design-system.md).
+
 - The destination still matters, including in Wander.
 - Extra time is explicit and ordinary-route detour caps are hard eligibility constraints.
 - Route explanations should say what makes a route interesting without fake match percentages or unsupported road-quality claims.
