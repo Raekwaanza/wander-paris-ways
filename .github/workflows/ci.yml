@@ -1,8 +1,10 @@
 name: Scenic Route CI
 
-# Provisional manual trigger: see docs/testing.md for the post-validation
-# pull_request and main-branch push activation.
 on:
+  pull_request:
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
