@@ -17,6 +17,7 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "test:e2e": "playwright test",
+    "test:e2e:live": "playwright test --config=playwright.live.config.ts",
     "mobile:build": "vite build --config vite.mobile.config.ts --mode mobile",
     "mobile:sync": "bun run mobile:build && cap sync",
     "mobile:sync:ios": "bun run mobile:build && cap sync ios",

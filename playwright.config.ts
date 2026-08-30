@@ -1,33 +1,25 @@
-import { defineConfig, devices } from "@playwright/test";
-
-const inheritedEnv = Object.fromEntries(
-  Object.entries(process.env).filter((entry): entry is [string, string] => entry[1] !== undefined),
-);
+import { defineConfig } from "@playwright/test";
+import { chromiumDesktop, inheritedEnv, sharedPlaywrightConfig } from "./playwright.shared";
 
 export default defineConfig({
-  testDir: "./e2e",
-  fullyParallel: false,
-  forbidOnly: Boolean(process.env["CI"]),
+  ...sharedPlaywrightConfig,
   retries: process.env["CI"] ? 2 : 0,
   workers: process.env["CI"] ? 1 : 2,
-  reporter: [["html", { open: "never" }], ["list"]],
-  outputDir: "test-results",
   use: {
+    ...sharedPlaywrightConfig.use,
     baseURL: "http://127.0.0.1:4173",
-    screenshot: "only-on-failure",
-    trace: "on-first-retry",
   },
   projects: [
     {
       name: "chromium-fixtures",
-      testIgnore: /preview-navigation\.spec\.ts/,
-      use: { ...devices["Desktop Chrome"] },
+      testIgnore: [/preview-navigation\.spec\.ts/, /live-ors\.spec\.ts/],
+      use: { ...chromiumDesktop },
     },
     {
       name: "chromium-preview",
       testMatch: /preview-navigation\.spec\.ts/,
       use: {
-        ...devices["Desktop Chrome"],
+        ...chromiumDesktop,
         baseURL: "http://127.0.0.1:4174",
       },
     },

@@ -20,7 +20,6 @@ export async function planOperaToPlaceDesVosges(page: Page) {
     await page.getByRole("button", { name: /^To\b/ }).click();
     await expect(destinationDialog).toBeVisible({ timeout: 1_000 });
   }).toPass({ timeout: 15_000 });
-  await destinationDialog.getByPlaceholder(/Address, landmark/).fill("Place des Vosges");
   await destinationDialog.getByRole("button", { name: /Place des Vosges/ }).click();
 
   await page.getByRole("button", { name: "Architecture" }).click();

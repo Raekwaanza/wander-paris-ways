@@ -2,121 +2,115 @@
 
 ## Deterministic browser E2E
 
-The implemented Playwright suite runs in Chromium against real local TanStack
+The deterministic Playwright suite runs in Chromium against real local TanStack
 Start server processes. Its primary server receives the server-only
 `SCENIC_E2E_FIXTURES=1` switch, so ORS-shaped route candidates pass through the
-normal route normalization, corridor analysis, scoring, selection, rendering,
-and navigation-eligibility code. Fixture mode is disabled when
+normal normalization, corridor analysis, scoring, selection, rendering, and
+navigation-eligibility code. Fixture mode is disabled when
 `NODE_ENV=production` and is never controlled by a public `VITE_*` variable.
 
-A second credential-free local server keeps fixtures disabled and exercises the
-existing deterministic Preview fallback. This verifies that estimated geometry
-cannot start navigation. Both servers explicitly receive empty ORS and MapTiler
-credentials, and browser map-tile requests are blocked by the specs, so the
-suite does not depend on external APIs or internet access.
+A second credential-free server keeps fixtures disabled and exercises the
+deterministic Preview fallback. Both servers explicitly blank ORS and MapTiler
+credentials. Browser map-style requests are intercepted by the specs, so this
+suite depends on no external APIs or internet access.
 
-Install Chromium once, then run the suite:
+Install Chromium once, then run:
 
 ```bash
 bunx playwright install chromium
-npm run test:e2e
+bun run test:e2e
 ```
 
-The browser tests cover:
-
-- choosing seeded start/destination data and generating Fastest, Scenic, and
-  Explorer routes through the planner;
-- selecting every route profile and observing its explanation and navigation
-  action;
-- opening and dismissing a Scenic discovery detail;
-- entering navigation for provider-shaped deterministic geometry;
-- preventing navigation for deterministic Preview geometry; and
-- recovering from direct planning entry without required trip state.
-
-Playwright writes its HTML report to `playwright-report/` and per-test output to
-`test-results/`. Screenshots are retained on failure, and traces are captured on
-the first retry. These generated directories are ignored by Git.
+The six browser tests cover route planning, Fastest/Scenic/Explorer selection,
+discovery details, provider-shaped navigation eligibility, Preview-only
+navigation prevention, and missing-trip recovery. Generated HTML reports and
+per-test output are written under `playwright-report/` and `test-results/` and
+are ignored by Git.
 
 Deterministic browser E2E requires no `OPENROUTESERVICE_API_KEY` or
-`MAPTILER_API_KEY`.
+`MAPTILER_API_KEY`, even when those variables exist in the developer's shell.
 
-## Pre-field-test gate
+## Live ORS browser smoke
 
-**REAL-WORLD DATA COLLECTION IS BLOCKED** until every applicable gate has
-genuinely executed successfully. The implemented local checks are:
+The live suite is deliberately one Chromium smoke test, not a duplicate of the
+deterministic suite. It selects seeded Opéra Garnier and Place des Vosges data,
+requests a route through Scenic Route's server/provider/domain pipeline, checks
+for live OpenRouteService attribution and positive route facts, verifies that
+navigation is enabled, and enters `/navigate` using the Fastest provider route.
+
+The server explicitly receives `SCENIC_E2E_FIXTURES=0` and an empty
+`MAPTILER_API_KEY`, so this smoke exercises ORS only. It uses no Playwright
+retries and normally requires one ORS alternatives request; the navigation page
+reuses the application route cache. Missing ORS credentials fail immediately
+rather than skipping or passing against Preview/fixture data.
+
+Run on shells that support inline environment assignment:
 
 ```bash
-bun install --frozen-lockfile
-npm test
-bunx playwright install chromium
-npm run test:e2e
-npm run build
+OPENROUTESERVICE_API_KEY=<server-side-key> bun run test:e2e:live
 ```
 
-Live-provider Playwright E2E and the `test:e2e:live` script are still deferred.
-They must eventually validate server-side ORS behavior with a real
-`OPENROUTESERVICE_API_KEY`; the optional MapTiler live-geocoding smoke is also
-deferred. Until that live smoke exists and passes, the complete pre-field-test
-gate has not passed. CI scaffolding and a green deterministic suite do not begin
-field collection.
-
-When live-provider tests are added, PowerShell users should set the key only for
-the current process without adding it to source control:
+PowerShell equivalent:
 
 ```powershell
-$env:OPENROUTESERVICE_API_KEY="<server-side-env>"
-npm run test:e2e:live
+$env:OPENROUTESERVICE_API_KEY="<server-side-key>"
+bun run test:e2e:live
 Remove-Item Env:OPENROUTESERVICE_API_KEY
 ```
 
-## CI status
+The key remains in the server process environment. It is never placed in a
+`VITE_*` variable, URL, browser context, local storage, test assertion, report,
+or application route state. MapTiler is not required because the smoke chooses
+places from Scenic Route's seeded list.
 
-`.github/workflows/ci.yml` remains intentionally manual-only
-(`workflow_dispatch`) until the complete local pre-field gate is ready for
-automatic enforcement. Its presence is scaffolding, not evidence that any check
-passes. It uses the official `oven-sh/setup-bun@v2` action with Bun `1.2.14`,
-pinned because the repository does not currently declare another Bun version.
+## Pre-field-test gate
 
-The workflow currently provides independent Unit tests and Production build
-jobs on Ubuntu. A future Browser E2E job should run the following with a bounded
-20-minute timeout:
+**REAL-WORLD DATA COLLECTION IS BLOCKED** until every command below has
+genuinely executed successfully in the intended development environment:
 
-```text
+```bash
 bun install --frozen-lockfile
-bunx playwright install --with-deps chromium
-npm run test:e2e
+bun run typecheck
+bun run test
+bunx playwright install chromium
+bun run test:e2e
+OPENROUTESERVICE_API_KEY=<server-side-key> bun run test:e2e:live
+bun run build
 ```
 
-That job must use only the server-side deterministic fixtures, require no ORS
-or MapTiler credentials, and upload `playwright-report/` and `test-results/`
-with `actions/upload-artifact@v4` only on failure and seven-day retention. No
-browser, Bun, Node, or operating-system matrix is planned for this initial CI.
+Implementing the infrastructure or skipping the credential-dependent smoke is
+not proof that this complete gate passed. The optional MapTiler live-geocoding
+smoke remains deferred.
 
-The live-provider suite must remain manual-only when it is implemented, validate
-the server-side repository secret without printing it, and never become a normal
-pull-request gate.
+## Manual CI status
 
-Repository-wide lint is deliberately not a CI gate yet. Historical lint debt
-must be addressed separately from browser E2E.
+`.github/workflows/ci.yml` remains intentionally manual-only
+(`workflow_dispatch`). It contains four independent, credential-free jobs:
+
+- **Unit Tests** — frozen install and `bun run test`;
+- **Typecheck** — frozen install and `bun run typecheck`;
+- **Production Build** — frozen install and `bun run build`; and
+- **Browser E2E** — frozen install, Chromium installation, and deterministic
+  `bun run test:e2e`.
+
+Browser E2E uploads `playwright-report/` and `test-results/` only on failure,
+with seven-day retention. No regular CI job receives ORS or MapTiler
+credentials. The live ORS smoke remains a deliberate local command; a separate
+manual secret-backed workflow can be added later if the repository secret is
+configured and that operational cost is desired.
+
+Repository-wide lint remains outside this gate and should be addressed
+separately.
 
 ### Future automatic activation
 
-Only after the complete local pre-field gate succeeds, change the trigger from:
+Only after the complete pre-field-test gate has actually passed should the
+workflow trigger be expanded from:
 
 ```yaml
 on:
   workflow_dispatch:
 ```
 
-to:
-
-```yaml
-on:
-  pull_request:
-  push:
-    branches:
-      - main
-  workflow_dispatch:
-```
-
-Branch protection is not configured during this step.
+to automatic pull-request and main-branch push checks. Branch protection and
+automatic triggers are not configured during this step.
