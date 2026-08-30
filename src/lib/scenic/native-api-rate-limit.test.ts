@@ -20,9 +20,10 @@ function bindings(): NativeApiRateLimitBindings {
 }
 
 function request(clientIp?: string) {
-  return new Request("https://backend.example/api/v1/routing/routes", {
-    headers: clientIp ? { "CF-Connecting-IP": clientIp } : undefined,
-  });
+  return new Request(
+    "https://backend.example/api/v1/routing/routes",
+    clientIp ? { headers: { "CF-Connecting-IP": clientIp } } : {},
+  );
 }
 
 describe("native API rate-limit policy", () => {

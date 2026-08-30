@@ -5,7 +5,6 @@ import type { LatLng, Poi } from "@/lib/scenic/types";
 import {
   buildRouteFeatureCollection,
   getRenderableRouteGeometry,
-  routeGeometryToMapLibreCoordinates,
 } from "@/lib/scenic/route-geometry";
 import { LegacyParisMap, type ParisMapProps } from "./LegacyParisMap";
 import type { GeoJSONSource, Map as MapLibreMap, Marker } from "maplibre-gl";
@@ -18,7 +17,7 @@ const PARIS_CENTER: [number, number] = [2.3522, 48.8566];
 const MAP_STARTUP_TIMEOUT_MS = 12_000;
 
 function coordinates(point: LatLng): [number, number] {
-  return routeGeometryToMapLibreCoordinates([point])[0]!;
+  return [point.lng, point.lat];
 }
 
 function makeMarkerElement(kind: "start" | "end" | "user", label: string) {
@@ -48,10 +47,7 @@ export function ParisMap(props: ParisMapProps) {
   const [mapReady, setMapReady] = useState(false);
   const [mapFailed, setMapFailed] = useState(false);
 
-  const routeData = useMemo<GeoJSON.FeatureCollection<GeoJSON.LineString>>(
-    () => buildRouteFeatureCollection(routes),
-    [routes],
-  );
+  const routeData = useMemo(() => buildRouteFeatureCollection(routes), [routes]);
   const initialInteractiveRef = useRef(interactive);
   const initialRouteDataRef = useRef(routeData);
 
@@ -122,7 +118,6 @@ export function ParisMap(props: ParisMapProps) {
             style: scenicConfig.mapStyleUrl,
             center: PARIS_CENTER,
             zoom: 12.4,
-            attributionControl: true,
             interactive: initialInteractiveRef.current,
           });
         } catch (error) {
@@ -272,13 +267,14 @@ export function ParisMap(props: ParisMapProps) {
     if (start) points.push(start);
     if (end) points.push(end);
     points.push(...discoveries);
-    if (points.length === 0) {
+    const [firstPoint, ...remainingPoints] = points;
+    if (!firstPoint) {
       map.easeTo({ center: PARIS_CENTER, zoom: 12.4 });
       return;
     }
-    const bounds = points.reduce(
+    const bounds = remainingPoints.reduce(
       (value, point) => value.extend(coordinates(point)),
-      new maplibreBounds(coordinates(points[0]!)),
+      new maplibreBounds(coordinates(firstPoint)),
     );
     // Legacy padding was in projected SVG units; this bounded conversion preserves its visual intent.
     const cameraPadding = Math.min(96, Math.max(28, padding * 6));

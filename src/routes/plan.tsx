@@ -100,7 +100,19 @@ function PlanPage() {
     );
   }
 
-  const active = routes.find((r) => r.profile === selected) ?? routes[1]!;
+  const active = routes.find((route) => route.profile === selected);
+  if (!active) {
+    return (
+      <SplitShell
+        map={<ParisMap start={from} end={to} padding={7} />}
+        panel={
+          <div className="p-6 text-sm text-muted-foreground">
+            We couldn't find that route option. Please go back and try again.
+          </div>
+        }
+      />
+    );
+  }
   const navigationReady = isNetworkNavigableRoute(active);
   const noWorthwhileDetour = active.discoveries.length === 0 && selected !== "fastest";
   const emptyDiscoveryRouteIsReal = noWorthwhileDetour && navigationReady;

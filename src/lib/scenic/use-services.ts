@@ -230,7 +230,11 @@ export function useTripRoute(
                 ...(learnedPreferences ? { learnedPreferences } : {}),
               },
             )
-            .then((routes) => routes.find((route) => route.profile === profile) ?? routes[1]!);
+            .then((routes) => {
+              const selectedRoute = routes.find((route) => route.profile === profile);
+              if (!selectedRoute) throw new Error(`Route profile ${profile} is unavailable`);
+              return selectedRoute;
+            });
     request.then(
       (data) => current && setResult({ data, loading: false, error: null }),
       (error: unknown) =>

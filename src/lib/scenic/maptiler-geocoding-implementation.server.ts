@@ -181,7 +181,7 @@ function validParisPoint(input: unknown): input is LatLng {
   );
 }
 
-async function mapTilerRequest(path: string, params: URLSearchParams) {
+async function mapTilerRequest(path: string, params: URLSearchParams): Promise<unknown | null> {
   const apiKey = process.env["MAPTILER_API_KEY"]?.trim();
   if (!apiKey) return null;
   params.set("key", apiKey);
@@ -253,7 +253,6 @@ export async function searchParisWithMapTilerImplementation(
     types: MAPTILER_SEARCH_TYPES.join(","),
   });
   const payload = await mapTilerRequest(encodeURIComponent(input.query), params);
-  return (
-    (payload && normalizeMapTilerForwardResult(payload)) || { status: "unavailable", places: [] }
-  );
+  if (payload === null) return { status: "unavailable", places: [] };
+  return normalizeMapTilerForwardResult(payload) ?? { status: "unavailable", places: [] };
 }
