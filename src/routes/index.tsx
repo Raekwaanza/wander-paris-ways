@@ -45,6 +45,7 @@ function Landing() {
     interests: ["architecture", "hidden"],
     detourCap: 20,
   });
+  const demoScenicRoute = demoRoutes?.find((route) => route.profile === "scenic");
 
   const go = (dest: Place | null) => {
     const to = dest ?? services.geocoding.byId("place-des-vosges")!;
@@ -65,8 +66,8 @@ function Landing() {
     <main className="relative min-h-[100dvh] overflow-hidden">
       <div className="absolute inset-0 opacity-[0.42]">
         <ParisMap
-          routes={demoRoutes ? [{ route: demoRoutes[1]!, active: true }] : []}
-          discoveries={demoRoutes?.[1]?.discoveries ?? []}
+          routes={demoScenicRoute ? [{ route: demoScenicRoute, active: true }] : []}
+          discoveries={demoScenicRoute?.discoveries ?? []}
           interactive={false}
           padding={10}
         />

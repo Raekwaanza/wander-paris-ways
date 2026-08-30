@@ -1,3 +1,4 @@
+import type { FeatureCollection, LineString } from "geojson";
 import type { LatLng, ScenicRoute } from "./types";
 
 export interface RenderableRoute {
@@ -34,7 +35,7 @@ export function routeGeometryToMapLibreCoordinates(
 
 export function buildRouteFeatureCollection(
   routes: readonly RenderableRoute[],
-): GeoJSON.FeatureCollection<GeoJSON.LineString> {
+): FeatureCollection<LineString> {
   return {
     type: "FeatureCollection",
     features: routes.flatMap(({ route, active }) => {

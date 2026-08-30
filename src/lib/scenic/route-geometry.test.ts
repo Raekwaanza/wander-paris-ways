@@ -38,10 +38,9 @@ describe("canonical route geometry", () => {
   ])("renders every %s provider vertex without endpoint interpolation", (name, path) => {
     const providerRoute = route(`ors-${name}`, path);
     expect(getRenderableRouteGeometry(providerRoute)).toBe(path);
-    expect(
-      buildRouteFeatureCollection([{ route: providerRoute, active: true }]).features[0]!.geometry
-        .coordinates,
-    ).toEqual(path.map(({ lat, lng }) => [lng, lat]));
+    const features = buildRouteFeatureCollection([{ route: providerRoute, active: true }]).features;
+    expect(features).toHaveLength(1);
+    expect(features[0]?.geometry.coordinates).toEqual(path.map(({ lat, lng }) => [lng, lat]));
   });
 
   it("converts LatLng to MapLibre longitude-latitude ordering", () => {

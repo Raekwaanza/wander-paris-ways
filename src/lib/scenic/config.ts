@@ -12,6 +12,7 @@ export function normalizeScenicProviderMode(value: unknown): ScenicProviderMode 
  * to this Vite-exposed configuration.
  */
 export const scenicConfig = {
-  providerMode: normalizeScenicProviderMode(import.meta.env?.VITE_SCENIC_DATA_MODE),
-  mapStyleUrl: import.meta.env?.VITE_SCENIC_MAP_STYLE_URL?.trim() || DEFAULT_SCENIC_MAP_STYLE_URL,
+  providerMode: normalizeScenicProviderMode(import.meta.env?.["VITE_SCENIC_DATA_MODE"]),
+  mapStyleUrl:
+    import.meta.env?.["VITE_SCENIC_MAP_STYLE_URL"]?.trim() || DEFAULT_SCENIC_MAP_STYLE_URL,
 } as const;
