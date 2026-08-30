@@ -181,6 +181,10 @@ function NavigatePage() {
     }
   }, [navigate, navigationLocation.fix, navigationLocation.status, profile, route]);
 
+  if (!trip) {
+    return <LocationRecovery reason="route-details" />;
+  }
+
   if (missingEndpoint) {
     const missingLocation =
       fromResolution?.status === "missing-current-location" ||

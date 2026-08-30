@@ -89,6 +89,9 @@ export function WhyThisRoute({ route }: { route: ScenicRoute }) {
           </>
         )}
       </p>
+      {route.attribution && (
+        <p className="mt-1 text-xs text-muted-foreground">{route.attribution}</p>
+      )}
     </section>
   );
 }

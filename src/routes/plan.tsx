@@ -72,6 +72,10 @@ function PlanPage() {
     return () => clearTimeout(timer);
   }, [from.id, to.id]);
 
+  if (!trip) {
+    return <LocationRecovery reason="route-details" />;
+  }
+
   if (missingEndpoint) {
     const missingLocation =
       fromResolution?.status === "missing-current-location" ||

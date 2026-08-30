@@ -33,6 +33,7 @@ export function DiscoveryChapters({ discoveries, onSelect, className }: Props) {
               <button
                 type="button"
                 onClick={() => onSelect(discovery)}
+                aria-label={`View details for ${discovery.name}`}
                 className="flex min-h-16 w-full items-start gap-3 px-1 py-3.5 text-left transition-colors hover:bg-secondary/55"
               >
                 {content}
