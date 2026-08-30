@@ -63,6 +63,11 @@ The key remains in the server process environment. It is never placed in a
 or application route state. MapTiler is not required because the smoke chooses
 places from Scenic Route's seeded list.
 
+`bun run build` deliberately removes provider credentials from the Vite child
+process before producing production artifacts. Cloudflare deployment secrets
+remain remote bindings; a credential present for the live smoke is therefore
+not copied into `dist/server/.dev.vars` by a later local build.
+
 ## Pre-field-test gate
 
 **REAL-WORLD DATA COLLECTION IS BLOCKED** until every command below has
