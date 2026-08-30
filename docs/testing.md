@@ -87,10 +87,11 @@ Implementing the infrastructure or skipping the credential-dependent smoke is
 not proof that this complete gate passed. The optional MapTiler live-geocoding
 smoke remains deferred.
 
-## Manual CI status
+## Automatic CI regression gate
 
-`.github/workflows/ci.yml` remains intentionally manual-only
-(`workflow_dispatch`). It contains four independent, credential-free jobs:
+`.github/workflows/ci.yml` runs automatically for every pull request and every
+push to `main`. It can also be started manually with `workflow_dispatch`. The
+workflow contains four independent, credential-free jobs that run in parallel:
 
 - **Unit Tests** — frozen install and `bun run test`;
 - **Typecheck** — frozen install and `bun run typecheck`;
@@ -100,22 +101,13 @@ smoke remains deferred.
 
 Browser E2E uploads `playwright-report/` and `test-results/` only on failure,
 with seven-day retention. No regular CI job receives ORS or MapTiler
-credentials. The live ORS smoke remains a deliberate local command; a separate
-manual secret-backed workflow can be added later if the repository secret is
-configured and that operational cost is desired.
+credentials.
+
+The automatic regression gate does not run `bun run test:e2e:live` and does not
+claim to validate ORS availability. The live ORS smoke remains a deliberate
+manual integration and field-readiness check that requires a real server-side
+ORS credential. A separate manual secret-backed workflow can be added later if
+the repository secret is configured and that operational cost is desired.
 
 Repository-wide lint remains outside this gate and should be addressed
 separately.
-
-### Future automatic activation
-
-Only after the complete pre-field-test gate has actually passed should the
-workflow trigger be expanded from:
-
-```yaml
-on:
-  workflow_dispatch:
-```
-
-to automatic pull-request and main-branch push checks. Branch protection and
-automatic triggers are not configured during this step.
