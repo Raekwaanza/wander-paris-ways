@@ -26,6 +26,37 @@ export interface LatLng {
   lng: number;
 }
 
+export type RouteInstructionManeuver =
+  | "depart"
+  | "straight"
+  | "left"
+  | "right"
+  | "sharp-left"
+  | "sharp-right"
+  | "slight-left"
+  | "slight-right"
+  | "roundabout"
+  | "roundabout-exit"
+  | "u-turn"
+  | "keep-left"
+  | "keep-right"
+  | "arrive"
+  | "unknown";
+
+/** Provider-authored walking guidance anchored to the selected route geometry. */
+export interface RouteInstruction {
+  providerType: number;
+  maneuver: RouteInstructionManeuver;
+  instruction: string;
+  streetName?: string;
+  distanceMeters: number;
+  durationSeconds: number;
+  fromPathIndex: number;
+  toPathIndex: number;
+  position: LatLng;
+  distanceAlongRouteMeters: number;
+}
+
 /**
  * Internal curated ranking inputs on a 0–10 editorial scale. These are not
  * objective metrics, reviews, probabilities, or user-facing ratings.
@@ -49,6 +80,7 @@ export interface WalkingRouteCandidate {
   path: LatLng[];
   distanceMeters: number;
   durationSeconds: number;
+  instructions?: RouteInstruction[];
   /** Geometric route-end offset; distinct from an ORS Snap API distance. */
   startOffsetMeters?: number;
   /** Geometric route-end offset; distinct from an ORS Snap API distance. */
@@ -128,6 +160,8 @@ export type RouteProfile = "fastest" | "scenic" | "explorer";
 
 export type RouteFeedbackRating = "loved" | "okay" | "not-for-me";
 
+export type NavigationFeedbackRating = "easy" | "mostly" | "difficult";
+
 export type RouteFeedbackAspectId =
   | "beautiful-streets"
   | "hidden-places"
@@ -145,7 +179,9 @@ export interface RouteFeedback {
   profile: RouteProfile;
   routingSource: "openrouteservice";
   rating: RouteFeedbackRating;
+  navigationRating?: NavigationFeedbackRating;
   aspects: RouteFeedbackAspectId[];
+  comment?: string;
   selectedInterests: InterestId[];
   matchedInterests: InterestId[];
   discoveryPoiIds: string[];
@@ -177,6 +213,7 @@ export interface ScenicRoute {
   extraMinutes: number;
   discoveries: Poi[];
   path: LatLng[];
+  instructions?: RouteInstruction[];
   matchedInterests: InterestId[];
   reasons: RouteReasonLine[];
   routingSource: "openrouteservice" | "mock";

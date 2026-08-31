@@ -5,7 +5,7 @@ import type {
   PedestrianRoutingInput,
   ViaRoutingInput,
 } from "./provider-contracts";
-import type { LatLng } from "./types";
+import type { LatLng, RouteInstruction, RouteInstructionManeuver } from "./types";
 import {
   fixturePedestrianCandidates,
   fixtureViaCandidate,
@@ -21,8 +21,8 @@ export const OPENROUTESERVICE_ALTERNATIVE_ROUTES = {
   share_factor: 0.6,
   weight_factor: 1.4,
 } as const;
-const OPENROUTESERVICE_CACHE_VERSION = "alternatives-v1";
-const VIA_CACHE_VERSION = "wander-via-v1";
+const OPENROUTESERVICE_CACHE_VERSION = "alternatives-instructions-v2";
+const VIA_CACHE_VERSION = "wander-via-instructions-v2";
 
 const viaRouteCache = new Map<string, PedestrianRouteResult>();
 const viaInFlight = new Map<string, Promise<PedestrianRouteResult | null>>();
@@ -44,6 +44,115 @@ function validCoordinatePair(value: unknown): value is [number, number] {
     value[1] >= -90 &&
     value[1] <= 90
   );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function providerText(value: unknown, maximumLength: number): string | undefined {
+  if (typeof value !== "string") return;
+  const withoutControlCharacters = [...value]
+    .map((character) => {
+      const code = character.charCodeAt(0);
+      return code <= 31 || code === 127 ? " " : character;
+    })
+    .join("");
+  const text = withoutControlCharacters
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return text ? text.slice(0, maximumLength) : undefined;
+}
+
+export function maneuverForOpenRouteServiceType(type: number): RouteInstructionManeuver {
+  return (
+    (
+      {
+        0: "left",
+        1: "right",
+        2: "sharp-left",
+        3: "sharp-right",
+        4: "slight-left",
+        5: "slight-right",
+        6: "straight",
+        7: "roundabout",
+        8: "roundabout-exit",
+        9: "u-turn",
+        10: "arrive",
+        11: "depart",
+        12: "keep-left",
+        13: "keep-right",
+      } as Record<number, RouteInstructionManeuver>
+    )[type] ?? "unknown"
+  );
+}
+
+function cumulativePathDistances(path: LatLng[]): number[] {
+  const distances = [0];
+  for (let index = 1; index < path.length; index += 1) {
+    distances.push(distances[index - 1]! + distanceKm(path[index - 1]!, path[index]!) * 1_000);
+  }
+  return distances;
+}
+
+function normalizeInstructions(properties: Record<string, unknown> | undefined, path: LatLng[]) {
+  const segments = properties?.["segments"];
+  if (!Array.isArray(segments)) return undefined;
+  const distances = cumulativePathDistances(path);
+  const instructions: RouteInstruction[] = [];
+  for (const segment of segments) {
+    if (!isRecord(segment) || !Array.isArray(segment["steps"])) continue;
+    for (const step of segment["steps"]) {
+      if (!isRecord(step)) continue;
+      const instruction = providerText(step["instruction"], 500);
+      const type = step["type"];
+      const distance = step["distance"];
+      const duration = step["duration"];
+      const wayPoints = step["way_points"];
+      if (
+        !instruction ||
+        typeof type !== "number" ||
+        !Number.isInteger(type) ||
+        type < 0 ||
+        typeof distance !== "number" ||
+        !Number.isFinite(distance) ||
+        distance < 0 ||
+        typeof duration !== "number" ||
+        !Number.isFinite(duration) ||
+        duration < 0 ||
+        !Array.isArray(wayPoints) ||
+        wayPoints.length < 2 ||
+        !wayPoints.every((index) => typeof index === "number" && Number.isInteger(index))
+      ) {
+        continue;
+      }
+      const fromPathIndex = wayPoints[0]!;
+      const toPathIndex = wayPoints[1]!;
+      if (
+        fromPathIndex < 0 ||
+        toPathIndex < fromPathIndex ||
+        fromPathIndex >= path.length ||
+        toPathIndex >= path.length
+      ) {
+        continue;
+      }
+      const streetName = providerText(step["name"], 200);
+      instructions.push({
+        providerType: type,
+        maneuver: maneuverForOpenRouteServiceType(type),
+        instruction,
+        ...(streetName ? { streetName } : {}),
+        distanceMeters: distance,
+        durationSeconds: duration,
+        fromPathIndex,
+        toPathIndex,
+        position: path[fromPathIndex]!,
+        distanceAlongRouteMeters: distances[fromPathIndex]!,
+      });
+    }
+  }
+  return instructions.length > 0 ? instructions : undefined;
 }
 
 export function normalizeOpenRouteServiceResponse(
@@ -81,6 +190,7 @@ export function normalizeOpenRouteServiceResponse(
     )
       continue;
     const path = coordinates.map(([lng, lat]) => ({ lat, lng }));
+    const instructions = normalizeInstructions(properties, path);
     const signature = routeGeometrySignature(path);
     if (geometrySignatures.has(signature)) continue;
     geometrySignatures.add(signature);
@@ -89,6 +199,7 @@ export function normalizeOpenRouteServiceResponse(
       path,
       distanceMeters: distance,
       durationSeconds: duration,
+      ...(instructions ? { instructions } : {}),
       ...(requestedEndpoints
         ? {
             startOffsetMeters: distanceKm(requestedEndpoints.from, path[0]!) * 1_000,
@@ -99,6 +210,16 @@ export function normalizeOpenRouteServiceResponse(
     });
   }
   return candidates;
+}
+
+export function buildOpenRouteServiceRouteBody(coordinates: number[][], alternatives: boolean) {
+  return {
+    coordinates,
+    preference: "shortest",
+    instructions: true,
+    instructions_format: "text",
+    ...(alternatives ? { alternative_routes: OPENROUTESERVICE_ALTERNATIVE_ROUTES } : {}),
+  };
 }
 
 export function validProviderPoint(point: unknown): point is LatLng {
@@ -152,15 +273,15 @@ async function requestRoute(input: PedestrianRoutingInput, apiKey: string) {
     const response = await fetch(OPENROUTESERVICE_ENDPOINT, {
       method: "POST",
       headers: { Authorization: apiKey, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        coordinates: [
-          [input.from.lng, input.from.lat],
-          [input.to.lng, input.to.lat],
-        ],
-        preference: "shortest",
-        instructions: false,
-        alternative_routes: OPENROUTESERVICE_ALTERNATIVE_ROUTES,
-      }),
+      body: JSON.stringify(
+        buildOpenRouteServiceRouteBody(
+          [
+            [input.from.lng, input.from.lat],
+            [input.to.lng, input.to.lat],
+          ],
+          true,
+        ),
+      ),
       signal: controller.signal,
     });
     if (!response.ok) return [];
@@ -179,11 +300,12 @@ async function requestViaRoute(input: ViaRoutingInput, apiKey: string) {
     const response = await fetch(OPENROUTESERVICE_ENDPOINT, {
       method: "POST",
       headers: { Authorization: apiKey, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        coordinates: input.points.map(({ lng, lat }) => [lng, lat]),
-        preference: "shortest",
-        instructions: false,
-      }),
+      body: JSON.stringify(
+        buildOpenRouteServiceRouteBody(
+          input.points.map(({ lng, lat }) => [lng, lat]),
+          false,
+        ),
+      ),
       signal: controller.signal,
     });
     if (!response.ok) return null;

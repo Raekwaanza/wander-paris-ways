@@ -13,6 +13,38 @@ export interface NavigationRouteMatch {
   projectedPoint: LatLng;
 }
 
+export interface DestinationArrivalState {
+  consecutiveFixes: number;
+  lastFixTimestamp: number | null;
+}
+
+export function initialDestinationArrivalState(): DestinationArrivalState {
+  return { consecutiveFixes: 0, lastFixTimestamp: null };
+}
+
+export function updateDestinationArrival(
+  previous: DestinationArrivalState,
+  observation: {
+    progress: number;
+    distanceToDestinationMeters: number;
+    onRoute: boolean;
+    timestamp: number;
+  },
+): { state: DestinationArrivalState; arrived: boolean } {
+  if (previous.lastFixTimestamp !== null && observation.timestamp <= previous.lastFixTimestamp) {
+    return { state: previous, arrived: false };
+  }
+  const qualifies =
+    observation.onRoute &&
+    observation.progress >= NAVIGATION_ARRIVAL_PROGRESS &&
+    observation.distanceToDestinationMeters <= NAVIGATION_ARRIVAL_DISTANCE_METERS;
+  const consecutiveFixes = qualifies ? previous.consecutiveFixes + 1 : 0;
+  return {
+    state: { consecutiveFixes, lastFixTimestamp: observation.timestamp },
+    arrived: consecutiveFixes >= NAVIGATION_ARRIVAL_CONSECUTIVE_FIXES,
+  };
+}
+
 export function matchNavigationPosition(
   point: LatLng,
   routePath: LatLng[],

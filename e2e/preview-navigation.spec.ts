@@ -20,4 +20,5 @@ test("keeps credential-free preview geometry out of navigation", async ({ page }
     timeout: 15_000,
   });
   await expect(page.getByRole("link", { name: "Back to routes" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Walking direction" })).toHaveCount(0);
 });

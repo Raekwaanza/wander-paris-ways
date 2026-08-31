@@ -1,5 +1,6 @@
 import type {
   InterestId,
+  NavigationFeedbackRating,
   RouteFeedback,
   RouteFeedbackAspectId,
   RouteFeedbackRating,
@@ -7,6 +8,7 @@ import type {
 } from "./types";
 
 export const MAX_ROUTE_FEEDBACK_ENTRIES = 100;
+export const MAX_ROUTE_FEEDBACK_COMMENT_LENGTH = 400;
 
 export const ROUTE_FEEDBACK_RATINGS: ReadonlyArray<{
   id: RouteFeedbackRating;
@@ -15,6 +17,15 @@ export const ROUTE_FEEDBACK_RATINGS: ReadonlyArray<{
   { id: "loved", label: "Loved it" },
   { id: "okay", label: "It was okay" },
   { id: "not-for-me", label: "Not for me" },
+];
+
+export const NAVIGATION_FEEDBACK_RATINGS: ReadonlyArray<{
+  id: NavigationFeedbackRating;
+  label: string;
+}> = [
+  { id: "easy", label: "Yes" },
+  { id: "mostly", label: "Mostly" },
+  { id: "difficult", label: "No" },
 ];
 
 export const ROUTE_FEEDBACK_ASPECTS: ReadonlyArray<{
@@ -30,6 +41,9 @@ export const ROUTE_FEEDBACK_ASPECTS: ReadonlyArray<{
 ];
 
 const RATINGS = new Set<RouteFeedbackRating>(ROUTE_FEEDBACK_RATINGS.map(({ id }) => id));
+const NAVIGATION_RATINGS = new Set<NavigationFeedbackRating>(
+  NAVIGATION_FEEDBACK_RATINGS.map(({ id }) => id),
+);
 const ASPECTS = new Set<RouteFeedbackAspectId>(ROUTE_FEEDBACK_ASPECTS.map(({ id }) => id));
 const PROFILES = new Set<RouteProfile>(["fastest", "scenic", "explorer"]);
 const INTERESTS = new Set<InterestId>([
@@ -51,6 +65,11 @@ export function routeFeedbackId(tripCreatedAt: number, routeId: string) {
   return `${tripCreatedAt}:${routeId}`;
 }
 
+export function normalizeRouteFeedbackComment(value: string): string | undefined {
+  const trimmed = value.trim();
+  return trimmed || undefined;
+}
+
 export function validateRouteFeedback(value: unknown): RouteFeedback | null {
   if (!isRecord(value)) return null;
   const {
@@ -61,7 +80,9 @@ export function validateRouteFeedback(value: unknown): RouteFeedback | null {
     profile,
     routingSource,
     rating,
+    navigationRating,
     aspects,
+    comment,
     selectedInterests,
     matchedInterests,
     discoveryPoiIds,
@@ -78,7 +99,11 @@ export function validateRouteFeedback(value: unknown): RouteFeedback | null {
     !PROFILES.has(profile as RouteProfile) ||
     routingSource !== "openrouteservice" ||
     !RATINGS.has(rating as RouteFeedbackRating) ||
+    (navigationRating !== undefined &&
+      !NAVIGATION_RATINGS.has(navigationRating as NavigationFeedbackRating)) ||
     !validUniqueArray(aspects, (item) => ASPECTS.has(item as RouteFeedbackAspectId)) ||
+    (comment !== undefined &&
+      (typeof comment !== "string" || comment.trim().length > MAX_ROUTE_FEEDBACK_COMMENT_LENGTH)) ||
     !validUniqueArray(selectedInterests, (item) => INTERESTS.has(item as InterestId)) ||
     !validUniqueArray(matchedInterests, (item) => INTERESTS.has(item as InterestId)) ||
     !validUniqueArray(discoveryPoiIds, usableText) ||
@@ -90,6 +115,8 @@ export function validateRouteFeedback(value: unknown): RouteFeedback | null {
   ) {
     return null;
   }
+  const normalizedComment =
+    typeof comment === "string" ? normalizeRouteFeedbackComment(comment) : undefined;
   return {
     id,
     routeId,
@@ -98,7 +125,11 @@ export function validateRouteFeedback(value: unknown): RouteFeedback | null {
     profile: profile as RouteProfile,
     routingSource,
     rating: rating as RouteFeedbackRating,
+    ...(navigationRating !== undefined
+      ? { navigationRating: navigationRating as NavigationFeedbackRating }
+      : {}),
     aspects: aspects as RouteFeedbackAspectId[],
+    ...(normalizedComment ? { comment: normalizedComment } : {}),
     selectedInterests: selectedInterests as InterestId[],
     matchedInterests: matchedInterests as InterestId[],
     discoveryPoiIds: discoveryPoiIds as string[],

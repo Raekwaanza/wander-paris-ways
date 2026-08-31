@@ -1,5 +1,5 @@
 import { distanceKm, pathLengthKm } from "./geo";
-import type { LatLng } from "./types";
+import type { LatLng, RouteInstruction } from "./types";
 
 export interface E2EPedestrianCandidate {
   providerRank: number;
@@ -9,10 +9,41 @@ export interface E2EPedestrianCandidate {
   startOffsetMeters: number;
   endOffsetMeters: number;
   attribution: string;
+  instructions: RouteInstruction[];
 }
 
 const WALKING_METERS_PER_SECOND = 1.35;
 const ATTRIBUTION = "Deterministic Scenic Route E2E fixture";
+
+function fixtureInstructions(points: LatLng[]): RouteInstruction[] {
+  let distanceAlongRouteMeters = 0;
+  return points.map((position, index) => {
+    const next = points[index + 1];
+    const distanceMeters = next ? distanceKm(position, next) * 1_000 : 0;
+    const middle = [
+      { providerType: 6, maneuver: "straight" as const, instruction: "Continue straight" },
+      { providerType: 1, maneuver: "right" as const, instruction: "Turn right" },
+      { providerType: 0, maneuver: "left" as const, instruction: "Turn left" },
+    ];
+    const copy =
+      index === 0
+        ? { providerType: 11, maneuver: "depart" as const, instruction: "Head southeast" }
+        : index === points.length - 1
+          ? { providerType: 10, maneuver: "arrive" as const, instruction: "You have arrived" }
+          : middle[(index - 1) % middle.length]!;
+    const instruction: RouteInstruction = {
+      ...copy,
+      distanceMeters,
+      durationSeconds: Math.round(distanceMeters / WALKING_METERS_PER_SECOND),
+      fromPathIndex: index,
+      toPathIndex: Math.min(index + 1, points.length - 1),
+      position,
+      distanceAlongRouteMeters,
+    };
+    distanceAlongRouteMeters += distanceMeters;
+    return instruction;
+  });
+}
 
 /** Server-only switch. Production can never serve test geometry, even if misconfigured. */
 export function isScenicE2EFixtureMode(): boolean {
@@ -29,6 +60,7 @@ function candidate(points: LatLng[], providerRank: number): E2EPedestrianCandida
     startOffsetMeters: 0,
     endOffsetMeters: 0,
     attribution: ATTRIBUTION,
+    instructions: fixtureInstructions(points),
   };
 }
 

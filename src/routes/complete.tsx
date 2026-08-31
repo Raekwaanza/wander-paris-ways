@@ -10,13 +10,22 @@ import { useTripRoute } from "@/lib/scenic/use-services";
 import { ScenicLoader } from "@/components/scenic/ScenicLoader";
 import { usePreferences, useRouteFeedback, useSavedRoutes, useTrip } from "@/lib/scenic/store";
 import { interestLabel } from "@/lib/scenic/interests";
-import type { RouteFeedbackAspectId, RouteFeedbackRating, RouteProfile } from "@/lib/scenic/types";
+import type {
+  NavigationFeedbackRating,
+  RouteFeedback,
+  RouteFeedbackAspectId,
+  RouteFeedbackRating,
+  RouteProfile,
+} from "@/lib/scenic/types";
 import { cn } from "@/lib/utils";
 import { LocationRecovery } from "@/components/scenic/LocationRecovery";
 import { resolveTripEndpoint, resolvedPlace } from "@/lib/scenic/trip-endpoints";
 import {
   ROUTE_FEEDBACK_ASPECTS,
   ROUTE_FEEDBACK_RATINGS,
+  NAVIGATION_FEEDBACK_RATINGS,
+  MAX_ROUTE_FEEDBACK_COMMENT_LENGTH,
+  normalizeRouteFeedbackComment,
   routeFeedbackId,
 } from "@/lib/scenic/route-feedback";
 import { createSharedRoutePayload } from "@/lib/scenic/shared-route";
@@ -66,7 +75,7 @@ function CompletePage() {
   const [prefs] = usePreferences();
   const { profile, routeId: completedRouteId, completion } = Route.useSearch();
   const { saveRoute } = useSavedRoutes();
-  const { feedback, upsertFeedback, removeFeedback } = useRouteFeedback();
+  const { feedback, upsertFeedback } = useRouteFeedback();
   const [saved, setSaved] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [confirmLocationShare, setConfirmLocationShare] = useState(false);
@@ -160,8 +169,14 @@ function CompletePage() {
     toast.success("Route saved", { description: `${from.name} → ${to.name}` });
   };
 
-  const persistFeedback = (rating: RouteFeedbackRating, aspects: RouteFeedbackAspectId[]) => {
+  const persistFeedback = (
+    rating: RouteFeedbackRating,
+    navigationRating: NavigationFeedbackRating,
+    aspects: RouteFeedbackAspectId[],
+    comment: string,
+  ) => {
     if (!feedbackEligible || !trip || !feedbackId || !completion) return;
+    const normalizedComment = normalizeRouteFeedbackComment(comment);
     upsertFeedback({
       id: feedbackId,
       routeId: route.id,
@@ -170,7 +185,9 @@ function CompletePage() {
       profile: route.profile,
       routingSource: "openrouteservice",
       rating,
+      navigationRating,
       aspects,
+      ...(normalizedComment ? { comment: normalizedComment } : {}),
       selectedInterests: [...new Set(trip.interests)],
       matchedInterests: [...new Set(route.matchedInterests)],
       discoveryPoiIds: [...new Set(route.discoveries.map(({ id }) => id))],
@@ -236,7 +253,11 @@ function CompletePage() {
               {estimated ? "Preview summary" : "Route complete"} · {to.name}
             </p>
             <h1 className="text-display mt-1 text-2xl">
-              {estimated ? "Your route preview is ready." : "Your walk is complete."}
+              {estimated
+                ? "Your route preview is ready."
+                : completion === "arrival"
+                  ? `You've arrived at ${to.name}.`
+                  : "Your walk is complete."}
             </h1>
           </div>
 
@@ -258,74 +279,16 @@ function CompletePage() {
           </dl>
 
           {feedbackEligible ? (
-            <div>
-              <h2 className="text-sm font-medium">How was this route?</h2>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {ROUTE_FEEDBACK_RATINGS.map(({ id, label }) => (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => persistFeedback(id, currentFeedback?.aspects ?? [])}
-                    className={cn(
-                      "min-h-11 rounded-full border px-4 text-sm font-medium transition-colors",
-                      currentFeedback?.rating === id
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-border bg-card hover:bg-secondary",
-                    )}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
+            <FeedbackQuestionnaire
+              key={feedbackId ?? "new"}
+              {...(currentFeedback ? { initialFeedback: currentFeedback } : {})}
+              onSubmit={persistFeedback}
+            />
           ) : !estimated ? (
             <p className="text-sm text-muted-foreground">
               Feedback isn't available for this route summary.
             </p>
           ) : null}
-
-          {currentFeedback && (
-            <div className="animate-sheet-up">
-              <h2 className="text-sm font-medium">What did you like?</h2>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {ROUTE_FEEDBACK_ASPECTS.map(({ id, label }) => {
-                  const on = currentFeedback.aspects.includes(id);
-                  return (
-                    <button
-                      key={id}
-                      type="button"
-                      onClick={() =>
-                        persistFeedback(
-                          currentFeedback.rating,
-                          on
-                            ? currentFeedback.aspects.filter((aspect) => aspect !== id)
-                            : [...currentFeedback.aspects, id],
-                        )
-                      }
-                      className={cn(
-                        "min-h-10 rounded-full border px-3.5 text-sm transition-colors",
-                        on
-                          ? "border-primary bg-accent text-accent-foreground"
-                          : "border-border bg-card text-muted-foreground hover:bg-secondary",
-                      )}
-                    >
-                      {label}
-                    </button>
-                  );
-                })}
-              </div>
-              <p className="mt-2 text-xs text-muted-foreground">
-                Saved on this device. Future discovery routes may gently reflect what you like.
-              </p>
-              <button
-                type="button"
-                onClick={() => removeFeedback(currentFeedback.id)}
-                className="mt-2 text-xs text-muted-foreground underline-offset-4 hover:underline"
-              >
-                Clear feedback
-              </button>
-            </div>
-          )}
 
           <div className="space-y-2">
             <Button
@@ -406,5 +369,165 @@ function CompletePage() {
         </div>
       }
     />
+  );
+}
+
+function FeedbackQuestionnaire({
+  initialFeedback,
+  onSubmit,
+}: {
+  initialFeedback?: RouteFeedback;
+  onSubmit: (
+    rating: RouteFeedbackRating,
+    navigationRating: NavigationFeedbackRating,
+    aspects: RouteFeedbackAspectId[],
+    comment: string,
+  ) => void;
+}) {
+  const [rating, setRating] = useState<RouteFeedbackRating | null>(initialFeedback?.rating ?? null);
+  const [navigationRating, setNavigationRating] = useState<NavigationFeedbackRating | null>(
+    initialFeedback?.navigationRating ?? null,
+  );
+  const [aspects, setAspects] = useState<RouteFeedbackAspectId[]>(initialFeedback?.aspects ?? []);
+  const [comment, setComment] = useState(initialFeedback?.comment ?? "");
+  const [saved, setSaved] = useState(false);
+  const [skipped, setSkipped] = useState(false);
+
+  if (skipped) {
+    return (
+      <p className="text-sm text-muted-foreground" role="status">
+        Feedback skipped. You can still save, share, or plan another walk.
+      </p>
+    );
+  }
+
+  if (saved) {
+    return (
+      <div className="surface-card p-4" role="status" aria-live="polite">
+        <p className="text-sm font-semibold">Thanks — feedback saved.</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Saved on this device. Route highlights may gently inform future discovery routes.
+        </p>
+      </div>
+    );
+  }
+
+  const choiceClass = (selected: boolean) =>
+    cn(
+      "min-h-11 rounded-full border px-4 text-sm font-medium transition-colors",
+      selected
+        ? "border-primary bg-primary text-primary-foreground"
+        : "border-border bg-card hover:bg-secondary",
+    );
+
+  return (
+    <section className="surface-card space-y-5 p-4" aria-labelledby="feedback-heading">
+      <div>
+        <h2 id="feedback-heading" className="text-base font-semibold">
+          Quick route feedback
+        </h2>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Three quick questions, stored only on this device.
+        </p>
+      </div>
+
+      <fieldset>
+        <legend className="text-sm font-medium">How was the route?</legend>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {ROUTE_FEEDBACK_RATINGS.map(({ id, label }) => (
+            <button
+              key={id}
+              type="button"
+              aria-pressed={rating === id}
+              onClick={() => setRating(id)}
+              className={choiceClass(rating === id)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend className="text-sm font-medium">Were the directions easy to follow?</legend>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {NAVIGATION_FEEDBACK_RATINGS.map(({ id, label }) => (
+            <button
+              key={id}
+              type="button"
+              aria-pressed={navigationRating === id}
+              onClick={() => setNavigationRating(id)}
+              className={choiceClass(navigationRating === id)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend className="text-sm font-medium">What did you enjoy?</legend>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {ROUTE_FEEDBACK_ASPECTS.map(({ id, label }) => {
+            const selected = aspects.includes(id);
+            return (
+              <button
+                key={id}
+                type="button"
+                aria-pressed={selected}
+                onClick={() =>
+                  setAspects((current) =>
+                    selected ? current.filter((aspect) => aspect !== id) : [...current, id],
+                  )
+                }
+                className={choiceClass(selected)}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      </fieldset>
+
+      <div>
+        <label htmlFor="route-feedback-comment" className="text-sm font-medium">
+          Anything else?
+        </label>
+        <textarea
+          id="route-feedback-comment"
+          value={comment}
+          maxLength={MAX_ROUTE_FEEDBACK_COMMENT_LENGTH}
+          onChange={(event) => setComment(event.currentTarget.value)}
+          rows={4}
+          className="mt-2 w-full resize-y rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        />
+        <p className="mt-1 text-right text-xs text-muted-foreground" aria-live="off">
+          {comment.length} / {MAX_ROUTE_FEEDBACK_COMMENT_LENGTH}
+        </p>
+      </div>
+
+      <div className="space-y-2">
+        <Button
+          type="button"
+          className="min-h-12 w-full"
+          disabled={!rating || !navigationRating}
+          onClick={() => {
+            if (!rating || !navigationRating) return;
+            onSubmit(rating, navigationRating, aspects, comment);
+            setSaved(true);
+          }}
+        >
+          Save feedback
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          className="min-h-11 w-full text-muted-foreground"
+          onClick={() => setSkipped(true)}
+        >
+          Skip feedback
+        </Button>
+      </div>
+    </section>
   );
 }

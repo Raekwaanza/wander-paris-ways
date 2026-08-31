@@ -70,7 +70,43 @@ test("starts navigation for a provider-backed route", async ({ page }) => {
   await expect(page.getByText(/Walking route .* Scenic .* Place des Vosges/)).toBeVisible({
     timeout: 15_000,
   });
+  await expect(page.getByRole("region", { name: "Walking direction" })).toBeVisible();
+  await expect(page.getByText("Head southeast")).toBeVisible();
   await expect(page.getByRole("button", { name: "Finish route" })).toBeVisible();
+});
+
+test("keeps manual and automatic completion truthful and saves compact feedback", async ({
+  page,
+}) => {
+  await planOperaToPlaceDesVosges(page);
+  await page.getByRole("button", { name: /^Scenic\b/ }).click();
+  await page.getByRole("button", { name: "Take Scenic Route" }).click();
+  await page.getByRole("button", { name: "Finish route" }).click();
+
+  await expect(page.getByRole("heading", { name: "Your walk is complete." })).toBeVisible({
+    timeout: 15_000,
+  });
+  await expect(page.getByRole("heading", { name: "Quick route feedback" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Loved it" }).click();
+  await page.getByRole("button", { name: "Mostly" }).click();
+  await page.getByRole("button", { name: "Hidden places" }).click();
+  const comment = page.getByLabel("Anything else?");
+  await comment.fill("x".repeat(450));
+  await expect(comment).toHaveValue("x".repeat(400));
+  await expect(page.getByText("400 / 400")).toBeVisible();
+  await page.getByRole("button", { name: "Save feedback" }).click();
+  await expect(page.getByText("Thanks — feedback saved.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Save route" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Share route" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Plan another walk" })).toBeVisible();
+
+  const automaticUrl = new URL(page.url());
+  automaticUrl.searchParams.set("completion", "arrival");
+  await page.goto(automaticUrl.toString());
+  await expect(
+    page.getByRole("heading", { name: "You've arrived at Place des Vosges." }),
+  ).toBeVisible({ timeout: 15_000 });
 });
 
 test("recovers when planning is entered without required trip state", async ({ page }) => {
