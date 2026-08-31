@@ -1,11 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { ShieldCheck } from "lucide-react";
+import { ExternalLink, ShieldCheck } from "lucide-react";
 import { ParisMap } from "@/components/scenic/ParisMap";
 import { SplitShell } from "@/components/scenic/SplitShell";
 import { InterestChips } from "@/components/scenic/InterestChips";
 import { usePreferences } from "@/lib/scenic/store";
 import { cn } from "@/lib/utils";
 import type { Preferences } from "@/lib/scenic/types";
+import { scenicConfig } from "@/lib/scenic/config";
 
 export const Route = createFileRoute("/profile")({
   head: () => ({
@@ -50,7 +51,7 @@ function ProfilePage() {
             <p className="text-eyebrow text-primary">Your route taste</p>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight">Preferences</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Everything here stays on this device.
+              Your route preferences are saved on this device.
             </p>
           </div>
 
@@ -134,9 +135,21 @@ function ProfilePage() {
               <div>
                 <h2 className="text-sm font-medium">Privacy</h2>
                 <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                  No account. No route history. Your location is used only to build the walk in
-                  front of you, and preferences are stored locally in this browser.
+                  No account required. Preferences, saved items, and route feedback stay on this
+                  device. Location and place searches may be securely processed by services that
+                  create routes and resolve places.
                 </p>
+                {scenicConfig.privacyPolicyUrl && (
+                  <a
+                    href={scenicConfig.privacyPolicyUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-3 inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-primary underline-offset-4 hover:underline"
+                  >
+                    Privacy Policy
+                    <ExternalLink className="size-3.5" aria-hidden="true" />
+                  </a>
+                )}
               </div>
             </div>
           </section>

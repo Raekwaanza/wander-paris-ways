@@ -6,6 +6,7 @@ import {
   createSharedRoutePayload,
   decodeSharedRoutePayload,
   encodeSharedRoutePayload,
+  sharedRouteUsesCurrentLocation,
   type SharedRoutePayloadV1,
   validateSharedRoutePayload,
 } from "./shared-route";
@@ -147,6 +148,7 @@ describe("shared-route codec and validation", () => {
     })!;
     expect(shared.from.name).toBe("Route start");
     expect(shared.to.name).toBe("Route end");
+    expect(sharedRouteUsesCurrentLocation(trip)).toBe(true);
     const serialized = JSON.stringify(shared);
     for (const secret of [
       "learnedPreferences",
@@ -157,6 +159,52 @@ describe("shared-route codec and validation", () => {
       "path",
     ])
       expect(serialized).not.toContain(secret);
+  });
+
+  it("keeps route-matching precision while removing surplus coordinate digits", () => {
+    const route: ScenicRoute = {
+      id: "ors-fastest-private",
+      profile: "fastest",
+      title: "Route",
+      blurb: "Route",
+      minutes: 20,
+      km: 2,
+      extraMinutes: 0,
+      discoveries: [],
+      path: [
+        { lat: 48.85661234, lng: 2.35222191 },
+        { lat: 48.86061198, lng: 2.33764321 },
+      ],
+      matchedInterests: [],
+      reasons: [],
+      routingSource: "openrouteservice",
+    };
+    const trip: TripPlan = {
+      from: { type: "seeded", id: "from" },
+      to: { type: "seeded", id: "to" },
+      interests: [],
+      detourCap: 20,
+      mode: "route",
+      createdAt: 1,
+    };
+    const shared = createSharedRoutePayload({
+      route,
+      trip,
+      from: {
+        id: "from",
+        name: "From",
+        kind: "Place",
+        area: "Paris",
+        lat: 48.85661234,
+        lng: 2.35222191,
+      },
+      to: { id: "to", name: "To", kind: "Place", area: "Paris", lat: 48.86061198, lng: 2.33764321 },
+      pace: "steady",
+    });
+
+    expect(shared?.from).toMatchObject({ lat: 48.856612, lng: 2.352222 });
+    expect(shared?.to).toMatchObject({ lat: 48.860612, lng: 2.337643 });
+    expect(sharedRouteUsesCurrentLocation(trip)).toBe(false);
   });
 
   it.each([

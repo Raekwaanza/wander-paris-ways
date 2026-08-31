@@ -158,9 +158,15 @@ export function decodeSharedRoutePayload(token: string): SharedRoutePayloadV1 | 
 
 const roundedEndpoint = (place: Place, fallbackName: string): SharedRouteEndpoint => ({
   name: place.name.trim().toLowerCase() === "current location" ? fallbackName : place.name,
+  // Route IDs and ORS candidate geometry are derived from six-decimal inputs.
+  // Coarser coordinates can reroute the walk and prevent exact reconstruction.
   lat: Number(place.lat.toFixed(6)),
   lng: Number(place.lng.toFixed(6)),
 });
+
+export function sharedRouteUsesCurrentLocation(trip: Pick<TripPlan, "from" | "to">): boolean {
+  return trip.from.type === "current-location" || trip.to.type === "current-location";
+}
 
 export function createSharedRoutePayload(args: {
   route: ScenicRoute;
