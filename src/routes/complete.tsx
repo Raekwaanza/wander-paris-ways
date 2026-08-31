@@ -28,14 +28,16 @@ import {
   normalizeRouteFeedbackComment,
   routeFeedbackId,
 } from "@/lib/scenic/route-feedback";
-import { createSharedRoutePayload } from "@/lib/scenic/shared-route";
+import {
+  createSharedRoutePayload,
+  sharedRouteUsesCurrentLocation,
+} from "@/lib/scenic/shared-route";
 import {
   buildCurrentCanonicalSharedRouteUrl,
   scenicShareProvider,
 } from "@/lib/scenic/share-provider";
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -78,7 +80,6 @@ function CompletePage() {
   const { feedback, upsertFeedback } = useRouteFeedback();
   const [saved, setSaved] = useState(false);
   const [sharing, setSharing] = useState(false);
-  const [confirmLocationShare, setConfirmLocationShare] = useState(false);
   const [manualShareUrl, setManualShareUrl] = useState<string | null>(null);
 
   const fromResolution = trip ? resolveTripEndpoint(trip.from) : null;
@@ -228,12 +229,10 @@ function CompletePage() {
       toast.error("Sharing is available for real walking routes.");
       return;
     }
-    if (trip?.from.type === "current-location" || trip?.to.type === "current-location") {
-      setConfirmLocationShare(true);
-      return;
-    }
     void performShare();
   };
+
+  const sharesCurrentLocation = trip ? sharedRouteUsesCurrentLocation(trip) : false;
 
   return (
     <SplitShell
@@ -316,6 +315,11 @@ function CompletePage() {
               <Share2 className="size-4" strokeWidth={1.75} />
               {sharing ? "Sharing…" : "Share route"}
             </Button>
+            {shareEligible && sharesCurrentLocation && (
+              <p className="px-1 text-xs leading-relaxed text-muted-foreground">
+                This link shares the route's approximate start and end locations with its recipient.
+              </p>
+            )}
             <Button
               type="button"
               variant="ghost"
@@ -325,24 +329,6 @@ function CompletePage() {
               Plan another walk
             </Button>
           </div>
-          <AlertDialog open={confirmLocationShare} onOpenChange={setConfirmLocationShare}>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Share this starting point?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  {trip?.from.type === "current-location" && trip?.to.type !== "current-location"
-                    ? "This route began from Current location. The share link will include the start and end points of this walk so the route can be opened on another device."
-                    : "This share link will include the route's start and end points so the walk can be opened on another device."}
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={() => void performShare()}>
-                  Share route
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
           <AlertDialog
             open={manualShareUrl !== null}
             onOpenChange={(open) => !open && setManualShareUrl(null)}
