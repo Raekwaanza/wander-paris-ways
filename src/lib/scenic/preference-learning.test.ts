@@ -48,6 +48,14 @@ describe("preference learning", () => {
     ).toEqual({});
   });
 
+  it("does not treat navigation rating or comment as preference signals", () => {
+    expect(
+      deriveLearnedPreferenceSnapshot([
+        makeFeedback({ navigationRating: "difficult", comment: "The crossing was confusing." }),
+      ]).interestAffinities,
+    ).toEqual({});
+  });
+
   it("maps food/cafes and courtyards/passages to their intentional signals", () => {
     const food = deriveLearnedPreferenceSnapshot([makeFeedback({ aspects: ["food-cafes"] })]);
     expect(food.interestAffinities.food).toBeGreaterThan(0);

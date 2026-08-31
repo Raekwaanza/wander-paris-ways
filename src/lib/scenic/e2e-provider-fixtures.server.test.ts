@@ -34,12 +34,20 @@ describe("server-only E2E provider fixtures", () => {
       expect(route.path.at(-1)).toEqual(TO);
       expect(route.distanceMeters).toBeGreaterThan(2_000);
       expect(route.durationSeconds).toBeGreaterThan(0);
+      expect(route.instructions[0]?.maneuver).toBe("depart");
+      expect(route.instructions.at(-1)?.maneuver).toBe("arrive");
     }
   });
 
   it("routes via every requested waypoint and creates a full matrix", () => {
     const points = [FROM, { lat: 48.8607, lng: 2.3522 }, TO];
-    expect(fixtureViaCandidate(points).path).toEqual(points);
+    const via = fixtureViaCandidate(points);
+    expect(via.path).toEqual(points);
+    expect(via.instructions.map(({ maneuver }) => maneuver)).toEqual([
+      "depart",
+      "straight",
+      "arrive",
+    ]);
     const matrix = fixtureWalkingDurations(points);
     expect(matrix).toHaveLength(points.length);
     expect(matrix.every((row) => row.length === points.length)).toBe(true);

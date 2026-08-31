@@ -215,6 +215,7 @@ async function realWalkingCandidates(from: LatLng, to: LatLng): Promise<WalkingR
     path: candidate.path,
     distanceMeters: candidate.distanceMeters,
     durationSeconds: candidate.durationSeconds,
+    ...(candidate.instructions?.length ? { instructions: candidate.instructions } : {}),
     ...(candidate.startOffsetMeters !== undefined
       ? { startOffsetMeters: candidate.startOffsetMeters }
       : {}),
@@ -257,6 +258,7 @@ function materializeDiscoveryRoute(
     extraMinutes: Math.max(0, Math.round(scored.extraMinutes)),
     discoveries,
     path: candidate.path,
+    ...(candidate.instructions?.length ? { instructions: candidate.instructions } : {}),
     matchedInterests: matchedInterestsForPois(discoveries, opts.interests),
     reasons: routeReasonsForPois(discoveries),
     routingSource: "openrouteservice",
@@ -296,6 +298,7 @@ const hybridRouting: RoutingService = {
             extraMinutes: 0,
             discoveries: [],
             path: direct.path,
+            ...(direct.instructions?.length ? { instructions: direct.instructions } : {}),
             matchedInterests: [],
             reasons: [],
             routingSource: "openrouteservice",
@@ -331,6 +334,7 @@ const hybridRouting: RoutingService = {
           extraMinutes: Math.max(0, Math.round(paced - directPaced)),
           discoveries,
           path: candidate.path,
+          ...(candidate.instructions?.length ? { instructions: candidate.instructions } : {}),
           matchedInterests: matchedInterestsForPois(discoveries, payload.interests),
           reasons: routeReasonsForPois(discoveries),
           routingSource: "openrouteservice",
@@ -356,6 +360,7 @@ const hybridRouting: RoutingService = {
         path: result.path,
         distanceMeters: result.distanceMeters,
         durationSeconds: result.durationSeconds,
+        ...(result.instructions?.length ? { instructions: result.instructions } : {}),
         ...(result.attribution ? { attribution: result.attribution } : {}),
       };
     }
@@ -409,6 +414,7 @@ const hybridRouting: RoutingService = {
       extraMinutes: 0,
       discoveries: [],
       path: provider.path,
+      ...(provider.instructions?.length ? { instructions: provider.instructions } : {}),
       matchedInterests: [],
       reasons: [],
       routingSource: "openrouteservice",
@@ -532,6 +538,7 @@ const hybridRouting: RoutingService = {
         path: result.path,
         distanceMeters: result.distanceMeters,
         durationSeconds: result.durationSeconds,
+        ...(result.instructions?.length ? { instructions: result.instructions } : {}),
         ...(result.startOffsetMeters !== undefined
           ? { startOffsetMeters: result.startOffsetMeters }
           : {}),

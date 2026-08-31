@@ -1,6 +1,15 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, Flag } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowUp,
+  CornerUpLeft,
+  CornerUpRight,
+  Flag,
+  Navigation,
+  RotateCcw,
+  X,
+} from "lucide-react";
 import { ParisMap } from "@/components/scenic/ParisMap";
 import { SplitShell } from "@/components/scenic/SplitShell";
 import { DiscoveryCard } from "@/components/scenic/DiscoveryCard";
@@ -12,17 +21,17 @@ import { useTripRoute } from "@/lib/scenic/use-services";
 import { ScenicLoader } from "@/components/scenic/ScenicLoader";
 import { distanceKm } from "@/lib/scenic/geo";
 import { usePreferences, useTrip } from "@/lib/scenic/store";
-import type { Poi, RouteProfile } from "@/lib/scenic/types";
+import type { Poi, RouteInstructionManeuver, RouteProfile } from "@/lib/scenic/types";
 import { LocationRecovery } from "@/components/scenic/LocationRecovery";
 import { resolveTripEndpoint, resolvedPlace } from "@/lib/scenic/trip-endpoints";
 import { isNetworkNavigableRoute } from "@/lib/scenic/navigation";
 import { useNavigationLocation } from "@/lib/scenic/use-navigation-location";
 import {
   matchNavigationPosition,
-  NAVIGATION_ARRIVAL_CONSECUTIVE_FIXES,
-  NAVIGATION_ARRIVAL_DISTANCE_METERS,
-  NAVIGATION_ARRIVAL_PROGRESS,
+  initialDestinationArrivalState,
   stabilizeNavigationMatch,
+  updateDestinationArrival,
+  type DestinationArrivalState,
   type NavigationRouteMatch,
 } from "@/lib/scenic/navigation-progress";
 import {
@@ -36,6 +45,15 @@ import {
   selectNavigationDiscovery,
 } from "@/lib/scenic/navigation-discoveries";
 import { Button } from "@/components/ui/button";
+import {
+  formatManeuverDistance,
+  selectNavigationInstruction,
+} from "@/lib/scenic/navigation-instructions";
+import {
+  initialPoiArrivalState,
+  updatePoiArrivals,
+  type PoiArrivalState,
+} from "@/lib/scenic/navigation-poi-arrival";
 
 export const Route = createFileRoute("/navigate")({
   validateSearch: (s: Record<string, unknown>) => ({
@@ -72,7 +90,10 @@ function NavigatePage() {
     initialRouteAdherenceState(),
   );
   const routeAdherenceRef = useRef(routeAdherence);
-  const arrivalCountRef = useRef(0);
+  const destinationArrivalRef = useRef<DestinationArrivalState>(initialDestinationArrivalState());
+  const [instructionIndex, setInstructionIndex] = useState(0);
+  const poiArrivalRef = useRef<PoiArrivalState>(initialPoiArrivalState());
+  const [poiArrivalQueue, setPoiArrivalQueue] = useState<Poi[]>([]);
 
   const fromResolution = trip ? resolveTripEndpoint(trip.from) : null;
   const toResolution = trip ? resolveTripEndpoint(trip.to) : null;
@@ -119,10 +140,13 @@ function NavigatePage() {
     setRouteMatch(null);
     setSkipped([]);
     setDetail(null);
+    setInstructionIndex(0);
+    setPoiArrivalQueue([]);
+    poiArrivalRef.current = initialPoiArrivalState();
     const resetAdherence = initialRouteAdherenceState();
     routeAdherenceRef.current = resetAdherence;
     setRouteAdherence(resetAdherence);
-    arrivalCountRef.current = 0;
+    destinationArrivalRef.current = initialDestinationArrivalState();
   }, [route?.id]);
 
   useEffect(() => {
@@ -130,7 +154,7 @@ function NavigatePage() {
       const resetAdherence = initialRouteAdherenceState();
       routeAdherenceRef.current = resetAdherence;
       setRouteAdherence(resetAdherence);
-      arrivalCountRef.current = 0;
+      destinationArrivalRef.current = initialDestinationArrivalState();
     }
   }, [navigationLocation.status]);
 
@@ -153,33 +177,50 @@ function NavigatePage() {
     routeAdherenceRef.current = nextAdherence;
     setRouteAdherence(nextAdherence);
 
+    const poiArrival = updatePoiArrivals(poiArrivalRef.current, fix, route.discoveries);
+    poiArrivalRef.current = poiArrival.state;
+    if (poiArrival.newlyArrived.length > 0) {
+      setPoiArrivalQueue((current) => [...current, ...poiArrival.newlyArrived]);
+    }
+
     if (nextAdherence.status === "off-route") {
-      arrivalCountRef.current = 0;
+      destinationArrivalRef.current = initialDestinationArrivalState();
       return;
     }
 
     setRouteMatch((previous) => stabilizeNavigationMatch(previous, next));
 
     if (nextAdherence.status !== "on-route") {
-      arrivalCountRef.current = 0;
+      destinationArrivalRef.current = initialDestinationArrivalState();
       return;
     }
 
     const destination = route.path.at(-1);
-    const arrived =
-      next.progress >= NAVIGATION_ARRIVAL_PROGRESS &&
-      Boolean(
-        destination &&
-        distanceKm(fix.point, destination) * 1_000 <= NAVIGATION_ARRIVAL_DISTANCE_METERS,
-      );
-    arrivalCountRef.current = arrived ? arrivalCountRef.current + 1 : 0;
-    if (arrivalCountRef.current >= NAVIGATION_ARRIVAL_CONSECUTIVE_FIXES) {
+    if (!destination) return;
+    const arrival = updateDestinationArrival(destinationArrivalRef.current, {
+      progress: next.progress,
+      distanceToDestinationMeters: distanceKm(fix.point, destination) * 1_000,
+      onRoute: true,
+      timestamp: fix.timestamp,
+    });
+    destinationArrivalRef.current = arrival.state;
+    if (arrival.arrived) {
       navigate({
         to: "/complete",
         search: { profile, routeId: route.id, completion: "arrival" },
       });
     }
   }, [navigate, navigationLocation.fix, navigationLocation.status, profile, route]);
+
+  useEffect(() => {
+    if (!route?.instructions?.length || routeAdherence.status === "off-route") return;
+    const selected = selectNavigationInstruction(
+      route.instructions,
+      routeMatch?.distanceAlongRouteMeters ?? null,
+      instructionIndex,
+    );
+    if (selected && selected.index !== instructionIndex) setInstructionIndex(selected.index);
+  }, [instructionIndex, route?.instructions, routeAdherence.status, routeMatch]);
 
   if (!trip) {
     return <LocationRecovery reason="route-details" />;
@@ -253,6 +294,12 @@ function NavigatePage() {
             activeDiscovery.distanceAlongRouteMeters >= routeMatch.distanceAlongRouteMeters
           ? "Coming up near the route"
           : undefined;
+  const displayedInstruction = selectNavigationInstruction(
+    route.instructions ?? [],
+    routeMatch?.distanceAlongRouteMeters ?? null,
+    instructionIndex,
+  );
+  const activePoiArrival = poiArrivalQueue[0] ?? null;
 
   return (
     <>
@@ -297,6 +344,18 @@ function NavigatePage() {
         }
         panel={
           <div className="space-y-4 px-5 pt-4 pb-6">
+            {displayedInstruction && (
+              <NavigationInstructionCard
+                maneuver={displayedInstruction.instruction.maneuver}
+                instruction={displayedInstruction.instruction.instruction}
+                {...(displayedInstruction.instruction.streetName
+                  ? { streetName: displayedInstruction.instruction.streetName }
+                  : {})}
+                distanceMeters={displayedInstruction.distanceToManeuverMeters}
+                paused={routeAdherence.status === "off-route"}
+              />
+            )}
+
             <div>
               <div className="flex items-baseline justify-between">
                 <p className="text-eyebrow text-muted-foreground">
@@ -334,6 +393,35 @@ function NavigatePage() {
                   The route hasn't changed. Return to the highlighted route when it is safe and
                   convenient.
                 </p>
+              </div>
+            )}
+
+            {activePoiArrival && (
+              <div
+                className="surface-card border border-primary/30 bg-accent/60 p-4"
+                aria-live="polite"
+                role="status"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold">You've reached {activePoiArrival.name}</p>
+                    <button
+                      type="button"
+                      onClick={() => setDetail(activePoiArrival)}
+                      className="mt-2 min-h-10 text-sm font-medium text-primary underline-offset-4 hover:underline"
+                    >
+                      View discovery
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setPoiArrivalQueue((current) => current.slice(1))}
+                    className="inline-flex size-11 shrink-0 items-center justify-center rounded-full hover:bg-background/70"
+                    aria-label={`Dismiss arrival message for ${activePoiArrival.name}`}
+                  >
+                    <X className="size-4" aria-hidden="true" />
+                  </button>
+                </div>
               </div>
             )}
 
@@ -376,6 +464,68 @@ function NavigatePage() {
       />
       <DiscoveryDetail poi={detail} onOpenChange={() => setDetail(null)} />
     </>
+  );
+}
+
+function NavigationInstructionCard({
+  maneuver,
+  instruction,
+  streetName,
+  distanceMeters,
+  paused,
+}: {
+  maneuver: RouteInstructionManeuver;
+  instruction: string;
+  streetName?: string;
+  distanceMeters: number | null;
+  paused: boolean;
+}) {
+  const ManeuverIcon =
+    maneuver === "left" || maneuver === "sharp-left" || maneuver === "slight-left"
+      ? CornerUpLeft
+      : maneuver === "right" || maneuver === "sharp-right" || maneuver === "slight-right"
+        ? CornerUpRight
+        : maneuver === "u-turn"
+          ? RotateCcw
+          : maneuver === "arrive"
+            ? Flag
+            : maneuver === "unknown" || maneuver === "roundabout" || maneuver === "roundabout-exit"
+              ? Navigation
+              : ArrowUp;
+  const usefulStreetName =
+    streetName && !instruction.toLocaleLowerCase().includes(streetName.toLocaleLowerCase())
+      ? streetName
+      : undefined;
+  return (
+    <section
+      className="surface-card border border-primary/30 p-4 shadow-card"
+      aria-label="Walking direction"
+    >
+      <div className="flex items-start gap-3">
+        <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
+          <ManeuverIcon className="size-6" strokeWidth={2} aria-hidden="true" />
+        </div>
+        <div className="min-w-0 flex-1">
+          {paused ? (
+            <p className="text-xs font-semibold tracking-wide text-primary uppercase">
+              Guidance paused while off route
+            </p>
+          ) : distanceMeters !== null ? (
+            <p className="text-sm font-semibold text-primary tabular-nums">
+              {formatManeuverDistance(distanceMeters)}
+            </p>
+          ) : (
+            <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+              Start of route
+            </p>
+          )}
+          <p className="mt-0.5 text-lg leading-snug font-semibold">{instruction}</p>
+          {usefulStreetName && (
+            <p className="mt-1 text-sm text-muted-foreground">{usefulStreetName}</p>
+          )}
+        </div>
+      </div>
+    </section>
   );
 }
 

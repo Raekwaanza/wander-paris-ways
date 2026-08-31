@@ -1,10 +1,29 @@
 import type {
   ForwardGeocodeResult,
   PedestrianRouteResponse,
+  PedestrianRouteResult,
   ReverseGeocodeResult,
   WalkingMatrixResponse,
 } from "./provider-contracts";
-import type { LatLng, Place } from "./types";
+import type { LatLng, Place, RouteInstruction, RouteInstructionManeuver } from "./types";
+
+const MANEUVERS = new Set<RouteInstructionManeuver>([
+  "depart",
+  "straight",
+  "left",
+  "right",
+  "sharp-left",
+  "sharp-right",
+  "slight-left",
+  "slight-right",
+  "roundabout",
+  "roundabout-exit",
+  "u-turn",
+  "keep-left",
+  "keep-right",
+  "arrive",
+  "unknown",
+]);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object" && !Array.isArray(value);
@@ -24,10 +43,77 @@ function isPoint(value: unknown): value is LatLng {
   );
 }
 
+function sanitizedText(value: unknown, maximumLength: number): string | undefined {
+  if (typeof value !== "string") return;
+  const withoutControlCharacters = [...value]
+    .map((character) => {
+      const code = character.charCodeAt(0);
+      return code <= 31 || code === 127 ? " " : character;
+    })
+    .join("");
+  const text = withoutControlCharacters
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return text ? text.slice(0, maximumLength) : undefined;
+}
+
+function parseRouteInstruction(value: unknown, path: LatLng[]): RouteInstruction | undefined {
+  if (!isRecord(value)) return;
+  const instruction = sanitizedText(value["instruction"], 500);
+  const streetName = sanitizedText(value["streetName"], 200);
+  const providerType = value["providerType"];
+  const maneuver = value["maneuver"];
+  const distanceMeters = value["distanceMeters"];
+  const durationSeconds = value["durationSeconds"];
+  const fromPathIndex = value["fromPathIndex"];
+  const toPathIndex = value["toPathIndex"];
+  const distanceAlongRouteMeters = value["distanceAlongRouteMeters"];
+  if (
+    !instruction ||
+    typeof providerType !== "number" ||
+    !Number.isInteger(providerType) ||
+    providerType < 0 ||
+    typeof maneuver !== "string" ||
+    !MANEUVERS.has(maneuver as RouteInstructionManeuver) ||
+    typeof distanceMeters !== "number" ||
+    !Number.isFinite(distanceMeters) ||
+    distanceMeters < 0 ||
+    typeof durationSeconds !== "number" ||
+    !Number.isFinite(durationSeconds) ||
+    durationSeconds < 0 ||
+    typeof fromPathIndex !== "number" ||
+    !Number.isInteger(fromPathIndex) ||
+    typeof toPathIndex !== "number" ||
+    !Number.isInteger(toPathIndex) ||
+    fromPathIndex < 0 ||
+    toPathIndex < fromPathIndex ||
+    toPathIndex >= path.length ||
+    typeof distanceAlongRouteMeters !== "number" ||
+    !Number.isFinite(distanceAlongRouteMeters) ||
+    distanceAlongRouteMeters < 0
+  ) {
+    return;
+  }
+  return {
+    providerType,
+    maneuver: maneuver as RouteInstructionManeuver,
+    instruction,
+    ...(streetName ? { streetName } : {}),
+    distanceMeters,
+    durationSeconds,
+    fromPathIndex,
+    toPathIndex,
+    position: path[fromPathIndex]!,
+    distanceAlongRouteMeters,
+  };
+}
+
 export function parsePedestrianRouteResponse(value: unknown): PedestrianRouteResponse | null {
   if (!isRecord(value)) return null;
   if (value["status"] === "unavailable") return { status: "unavailable" };
   if (value["status"] !== "success" || !Array.isArray(value["candidates"])) return null;
+  const candidates: PedestrianRouteResult[] = [];
   for (const candidate of value["candidates"]) {
     if (!isRecord(candidate) || !Array.isArray(candidate["path"])) return null;
     if (candidate["path"].length < 2 || !candidate["path"].every(isPoint)) return null;
@@ -43,8 +129,35 @@ export function parsePedestrianRouteResponse(value: unknown): PedestrianRouteRes
       candidate["durationSeconds"] < 0
     )
       return null;
+    const path = candidate["path"] as LatLng[];
+    const instructions = Array.isArray(candidate["instructions"])
+      ? candidate["instructions"].flatMap((item) => {
+          const parsed = parseRouteInstruction(item, path);
+          return parsed ? [parsed] : [];
+        })
+      : undefined;
+    candidates.push({
+      providerRank: candidate["providerRank"],
+      path,
+      distanceMeters: candidate["distanceMeters"],
+      durationSeconds: candidate["durationSeconds"],
+      ...(instructions?.length ? { instructions } : {}),
+      ...(typeof candidate["startOffsetMeters"] === "number" &&
+      Number.isFinite(candidate["startOffsetMeters"]) &&
+      candidate["startOffsetMeters"] >= 0
+        ? { startOffsetMeters: candidate["startOffsetMeters"] }
+        : {}),
+      ...(typeof candidate["endOffsetMeters"] === "number" &&
+      Number.isFinite(candidate["endOffsetMeters"]) &&
+      candidate["endOffsetMeters"] >= 0
+        ? { endOffsetMeters: candidate["endOffsetMeters"] }
+        : {}),
+      ...(typeof candidate["attribution"] === "string" && candidate["attribution"].trim()
+        ? { attribution: candidate["attribution"].trim().slice(0, 500) }
+        : {}),
+    });
   }
-  return value as unknown as PedestrianRouteResponse;
+  return { status: "success", candidates };
 }
 
 export function parseWalkingMatrixResponse(value: unknown): WalkingMatrixResponse | null {

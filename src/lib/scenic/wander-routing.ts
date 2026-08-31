@@ -262,6 +262,7 @@ export function materializeWanderRoute(args: {
     extraMinutes: Math.max(0, Math.round(pacedMinutes - directMinutes)),
     discoveries,
     path: candidate.path,
+    ...(candidate.instructions?.length ? { instructions: candidate.instructions } : {}),
     matchedInterests: matchedInterestsForPois(discoveries, opts.interests),
     reasons: routeReasonsForPois(discoveries),
     routingSource: "openrouteservice",

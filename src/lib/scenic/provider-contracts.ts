@@ -1,4 +1,4 @@
-import type { LatLng, Place } from "./types";
+import type { LatLng, Place, RouteInstruction } from "./types";
 
 export interface PedestrianRoutingInput {
   from: LatLng;
@@ -14,6 +14,7 @@ export interface PedestrianRouteResult {
   path: LatLng[];
   distanceMeters: number;
   durationSeconds: number;
+  instructions?: RouteInstruction[];
   /** Geometric distance from the requested point, not ORS Snap API distance. */
   startOffsetMeters?: number;
   /** Geometric distance from the requested point, not ORS Snap API distance. */
